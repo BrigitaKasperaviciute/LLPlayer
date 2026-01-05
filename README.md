@@ -339,3 +339,34 @@ In addition, advances in software and hardware allow for maximum accuracy in ASR
 ## 📝 LICENSE
 
 This project is licensed under the [GPL-3.0 license](LICENSE).
+
+# Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+dotnet test FlyleafLibTests/FlyleafLibTests.csproj
+
+# Run integration tests only
+dotnet test FlyleafLibTests/FlyleafLibTests.csproj --filter "FullyQualifiedName~Integration"
+```
+
+### Integration Tests
+
+18 integration tests covering 9 core components:
+
+1. **EngineInitialization** - Engine config initialization & multiple instances
+2. **ConfigurationManagement** - Config creation & independence  
+3. **AudioPlayback** - Audio config initialization & channel configuration
+4. **VideoPlayback** - Video config initialization & property validation
+5. **Playlist** - Playlist player config & creation
+6. **Subtitles** - Subtitle manager creation & loading
+7. **PlaybackControl** - Player config initialization & key bindings
+8. **StreamManagement** - Audio/video stream config initialization
+9. **DemuxerDecoder** - Demuxer/decoder config initialization & threads
+
+Each component has 2 tests: 1 positive scenario + 1 negative scenario.
+
+## To check report
+Invoke-Item coveragereport\index.html
