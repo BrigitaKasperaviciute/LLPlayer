@@ -154,6 +154,9 @@ public static class Logger
 
     internal static void Log(string msg, LogLevel logLevel)
     {
+        if (Engine.Config == null)
+            return;
+
         if (logLevel <= Engine.Config.LogLevel)
             Output($"{DateTime.Now.ToString(Engine.Config.LogDateTimeFormat)} | {logLevels[logLevel]} | {msg}");
     }

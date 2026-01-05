@@ -153,6 +153,38 @@ In Visual Studio, You need to add preview support for slnx format from the setti
 
 Select `LLPlayer` project and then build and run.
 
+## Testing
+
+### Run All Tests
+
+```bash
+dotnet test
+```
+
+### Run Integration Tests Only
+
+```bash
+dotnet test FlyleafLibTests/FlyleafLibTests.csproj --filter "LLPlayerIntegrationTests"
+```
+
+### Code Coverage Report
+
+Generate and view code coverage report:
+
+```bash
+# Generate coverage
+dotnet test FlyleafLibTests/FlyleafLibTests.csproj --collect:"XPlat Code Coverage"
+
+# Generate HTML report
+reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:"TestResults/CoverageReport" -reporttypes:Html
+
+# Open report (using helper script)
+.\open_coverage.ps1
+
+# Or open directly
+Invoke-Item TestResults\CoverageReport\index.html
+```
+
 ## 🚩 Roadmaps
 
 Guiding Principles for LLPlayer
