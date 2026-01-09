@@ -153,6 +153,67 @@ In Visual Studio, You need to add preview support for slnx format from the setti
 
 Select `LLPlayer` project and then build and run.
 
+4. **Running Tests**
+
+To run all tests:
+
+```bash
+dotnet test
+```
+
+To run only the integration tests:
+
+```bash
+dotnet test --filter "FullyQualifiedName~PlayerInitializationTests|FullyQualifiedName~PlaybackControlTests|FullyQualifiedName~AudioStreamTests|FullyQualifiedName~VideoStreamTests|FullyQualifiedName~SubtitleSeekTests|FullyQualifiedName~SeekTimelineTests|FullyQualifiedName~SpeedPlaybackTests|FullyQualifiedName~ConfigurationStateTests|FullyQualifiedName~FileOpenTests"
+```
+
+**Running Tests with Code Coverage:**
+
+```bash
+dotnet add FlyleafLibTests package coverlet.collector
+```
+
+Then run tests with coverage:
+
+```bash
+dotnet test --collect:"XPlat Code Coverage"
+```
+
+Coverage reports will be generated in `FlyleafLibTests/TestResults/` as `coverage.cobertura.xml`.
+
+**Suppress Warnings:**
+
+To suppress workload update warnings, you can either:
+
+**Option 1: Update workloads** (requires admin privileges)
+```bash
+dotnet workload update
+```
+
+**Option 2: Filter the warning from output**
+```bash
+# Windows Command Prompt
+dotnet test 2>&1 | findstr /V "Workload"
+
+# Windows PowerShell
+dotnet test 2>&1 | Where-Object { $_ -notmatch "Workload" }
+
+# Linux/Mac (using grep)
+dotnet test 2>&1 | grep -v "Workload"
+```
+
+**Option 3: Disable in global.json**
+
+Create a `global.json` file in the project root:
+```json
+{
+  "sdk": {
+    "version": "9.0.203",
+    "rollForward": "latestFeature"
+  }
+}
+```
+
 ## 🚩 Roadmaps
 
 Guiding Principles for LLPlayer
@@ -339,3 +400,4 @@ In addition, advances in software and hardware allow for maximum accuracy in ASR
 ## 📝 LICENSE
 
 This project is licensed under the [GPL-3.0 license](LICENSE).
+

@@ -1,3 +1,4 @@
+using System.Windows;
 ﻿using FluentAssertions;
 using FluentAssertions.Execution;
 

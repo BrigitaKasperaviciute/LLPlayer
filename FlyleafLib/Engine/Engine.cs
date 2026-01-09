@@ -153,7 +153,7 @@ public static class Engine
         var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         Log.Info($"FlyleafLib {version.Major }.{version.Minor}.{version.Build}");
 
-        FFmpeg  = new FFmpegEngine();
+        FFmpeg  = Config.SkipFFmpegLoad ? FFmpegEngine.CreateStub() : new FFmpegEngine();
         Video   = new VideoEngine();
         if (Config.FFmpegLoadProfile == LoadProfile.All)
             VideoDevice.RefreshDevices();

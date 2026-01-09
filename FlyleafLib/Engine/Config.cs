@@ -47,7 +47,12 @@ public class Config : NotifyPropertyChanged
         Demuxer.config = this;
     }
 
-    public Config(bool test) { }
+    public Config(bool test) 
+    {
+        // Test constructor - initialize configs without loading plugins
+        Player.config = this;
+        Demuxer.config = this;
+    }
 
     public Config Clone()
     {
@@ -1346,6 +1351,12 @@ public class EngineConfig
     /// </summary>
     public LoadProfile
                     FFmpegLoadProfile       { get; set; } = LoadProfile.Filters; // change default to disable devices
+
+    /// <summary>
+    /// When true, FFmpeg libraries are not loaded (useful for tests without native binaries).
+    /// </summary>
+    [JsonIgnore]
+    public bool     SkipFFmpegLoad          { get; set; }
 
     /// <summary>
     /// Whether to allow HLS live seeking (this can cause segmentation faults in case of incompatible ffmpeg version with library's custom structures)

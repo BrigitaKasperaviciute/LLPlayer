@@ -8,8 +8,22 @@ public class FFmpegEngine
     const int           AV_LOG_BUFFER_SIZE = 5 * 1024;
     internal AVRational AV_TIMEBASE_Q;
 
-    internal FFmpegEngine()
+    internal FFmpegEngine() : this(false)
     {
+    }
+
+    internal FFmpegEngine(bool skipLoad)
+    {
+        if (skipLoad)
+        {
+            // Stub mode for tests when FFmpeg binaries are unavailable
+            Folder = "<skipped>";
+            Version = "stub";
+            AV_TIMEBASE_Q = new AVRational { Num = 1, Den = 1000000 };
+            Engine.Log.Info("FFmpeg load skipped (test stub)");
+            return;
+        }
+
         try
         {
             Engine.Log.Info($"Loading FFmpeg libraries from '{Engine.Config.FFmpegPath}'");
@@ -28,6 +42,8 @@ public class FFmpegEngine
             throw new Exception($"Loading FFmpeg libraries '{Engine.Config.FFmpegPath}' failed");
         }
     }
+
+    internal static FFmpegEngine CreateStub() => new FFmpegEngine(true);
 
     internal static void SetLogLevel()
     {
