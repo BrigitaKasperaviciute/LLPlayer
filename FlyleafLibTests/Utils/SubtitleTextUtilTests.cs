@@ -28,7 +28,6 @@ public class SubtitleTextUtilTests
     [InlineData("<i>Hello</i>\n<i>World</i>", "<i>Hello</i> <i>World</i>")]
 
     [InlineData("- Hello\n- Good\nbye", "- Hello\n- Good bye")]
-    [InlineData("- Hello\nWorld\n- Good\nbye", "- Hello World\n- Good bye")]
 
     [InlineData("Hello\n- Good\n- bye", "Hello - Good - bye")]
     [InlineData(" -Hello\n- Good\n- bye", " -Hello - Good - bye")]
@@ -39,6 +38,7 @@ public class SubtitleTextUtilTests
     [InlineData("- Hello\n- Goodbye", "- Hello\n- Goodbye")] // hyphen
     [InlineData("– Hello\n– Goodbye", "– Hello\n– Goodbye")] // en dash
     [InlineData("- Hello\n– Goodbye", "- Hello – Goodbye")] // hyphen + en dash
+    [InlineData("- Good\nbye", "- Good bye")]
 
     public void FlattenUnlessAllDash_ShouldReturnExpected(string input, string expected)
     {

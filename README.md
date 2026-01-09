@@ -368,5 +368,5 @@ dotnet test FlyleafLibTests/FlyleafLibTests.csproj --filter "FullyQualifiedName~
 
 Each component has 2 tests: 1 positive scenario + 1 negative scenario.
 
-## To check report
-Invoke-Item coveragereport\index.html
+## To run tests 20 time and calculate average run time
+powershell -ExecutionPolicy Bypass -File "run-tests-multiple.ps1"
