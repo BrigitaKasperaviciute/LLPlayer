@@ -181,6 +181,42 @@ dotnet test --collect:"XPlat Code Coverage"
 
 Coverage reports will be generated in `FlyleafLibTests/TestResults/` as `coverage.cobertura.xml`.
 
+**Benchmark Tests (Run Multiple Times):**
+
+To run tests multiple times and calculate average execution time:
+
+```powershell
+# PowerShell - Run 20 times (default)
+.\run-tests-benchmark.ps1
+
+# Run 50 times
+.\run-tests-benchmark.ps1 -Iterations 50
+
+# Run integration tests only (shortcut)
+.\run-integration-tests-benchmark.ps1
+
+# Or with custom iterations
+.\run-integration-tests-benchmark.ps1 -Iterations 50
+
+# Run with code coverage
+.\run-tests-benchmark.ps1 -Coverage
+
+# Windows Command Prompt
+.\run-tests-benchmark.cmd
+```
+
+The PowerShell script will:
+1. Build the project once (avoiding repeated compilation)
+2. Run a warmup test (initialize JIT and caches)
+3. Execute the benchmark iterations
+4. Display statistics:
+   - Average execution time (~5-6s per run after warmup)
+   - Minimum/Maximum time
+   - Standard deviation
+   - Individual run times
+
+**Note:** The script uses `--no-build` flag for faster benchmarking. First run may be slightly slower due to initialization.
+
 **Suppress Warnings:**
 
 To suppress workload update warnings, you can either:
