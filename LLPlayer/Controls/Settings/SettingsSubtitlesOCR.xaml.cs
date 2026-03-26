@@ -41,7 +41,6 @@ public class SettingsSubtitlesOCRVM : Bindable
     public ObservableCollection<Windows.Globalization.Language> AvailableMsOcrLanguages { get; } = new();
     public ObservableCollection<MsOcrLanguageGroup> MsLanguageGroups { get; } = new();
 
-    [field: AllowNull, MaybeNull]
     public DelegateCommand CmdDownloadTessModel => field ??= new(() =>
     {
         _dialogService.ShowDialog(nameof(TesseractDownloadDialog));

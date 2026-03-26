@@ -37,7 +37,7 @@ public partial class SettingsKeys : UserControl
     // Scroll to the added record when a new record is added.
     private void KeyBindingsDataGrid_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (VM.CmdLoad!.IsExecuting)
+        if (VM.CmdLoad.IsExecuting)
         {
             return;
         }
@@ -103,7 +103,7 @@ public class SettingsKeysVM : Bindable
         _actionsView.SortDescriptions.Add(new SortDescription(nameof(ActionData.Group), ListSortDirection.Ascending));
         _actionsView.SortDescriptions.Add(new SortDescription(nameof(ActionData.DisplayName), ListSortDirection.Ascending));
 
-        _actionsView.GroupDescriptions!.Add(new PropertyGroupDescription(nameof(ActionData.Group)));
+        _actionsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ActionData.Group)));
     }
 
     public List<ActionData> Actions { get; }
@@ -126,9 +126,9 @@ public class SettingsKeysVM : Bindable
     }
 
     // Disable Apply button if there are duplicates or during loading
-    public bool CanApply => DuplicationCount == 0 && !CmdLoad!.IsExecuting;
+    public bool CanApply => DuplicationCount == 0 && !CmdLoad.IsExecuting;
 
-    public DelegateCommand? CmdAdd => field ??= new(() =>
+    public DelegateCommand CmdAdd => field ??= new(() =>
     {
         KeyBindingWrapper added = new(new KeyBinding { Action = KeyBindingAction.AudioDelayAdd }, this);
         KeyBindings.Add(added);
@@ -137,7 +137,7 @@ public class SettingsKeysVM : Bindable
         added.ValidateShortcut();
     });
 
-    public AsyncDelegateCommand? CmdLoad => field ??= new(async () =>
+    public AsyncDelegateCommand CmdLoad => field ??= new(async () =>
     {
         KeyBindings.Clear();
         DuplicationCount = 0;
@@ -174,7 +174,7 @@ public class SettingsKeysVM : Bindable
     /// <summary>
     /// Reflect customized key settings to Config.
     /// </summary>
-    public DelegateCommand? CmdApply => field ??= new DelegateCommand(() =>
+    public DelegateCommand CmdApply => field ??= new DelegateCommand(() =>
     {
         foreach (var b in KeyBindings)
         {

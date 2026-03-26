@@ -8,6 +8,23 @@ using static FlyleafLib.MediaFramework.MediaDemuxer.Demuxer;
 
 namespace LLPlayer.Converters;
 
+[ValueConversion(typeof(long), typeof(string))]
+public class TicksToTimeConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var ts = TimeSpan.FromTicks((long)value);
+
+        if (ts.TotalHours > 9)
+            return ((int)ts.TotalHours) + ts.ToString(@"\:mm\:ss");
+        else
+            return ts.ToString(@"hh\:mm\:ss");
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
 [ValueConversion(typeof(int), typeof(Qualities))]
 public class QualityToLevelsConverter : IValueConverter
 {
@@ -26,14 +43,15 @@ public class QualityToLevelsConverter : IValueConverter
 
         if (videoHeight > 1080)
             return Qualities._4k;
-        if (videoHeight > 720)
+        else if (videoHeight > 720)
             return Qualities.High;
-        if (videoHeight == 720)
+        else if (videoHeight == 720)
             return Qualities.Med;
-
-        return Qualities.Low;
+        else
+            return Qualities.Low;
     }
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) { throw new NotImplementedException(); }
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
 }
 
 [ValueConversion(typeof(int), typeof(Volumes))]
@@ -53,13 +71,15 @@ public class VolumeToLevelsConverter : IValueConverter
 
         if (volume == 0)
             return Volumes.Mute;
-        if (volume > 99)
+        else if (volume > 99)
             return Volumes.High;
-        if (volume > 49)
+        else if (volume > 49)
             return Volumes.Med;
-        return Volumes.Low;
+        else
+            return Volumes.Low;
     }
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) { throw new NotImplementedException(); }
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
 }
 
 public class SumConverter : IMultiValueConverter
@@ -88,9 +108,7 @@ public class SumConverter : IMultiValueConverter
 public class PlaylistItemsConverter : IMultiValueConverter
 {
     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
-    {
-        return $"Playlist ({values[0]}/{values[1]})";
-    }
+        => $"Playlist ({values[0]}/{values[1]})";
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
         => throw new NotImplementedException();
@@ -109,6 +127,7 @@ public class ColorToHexConverter : IValueConverter
         string hex = UpperHexString(color.R) +
                       UpperHexString(color.G) +
                       UpperHexString(color.B);
+
         return hex;
     }
 
@@ -135,9 +154,7 @@ public class Tuple3Converter : IMultiValueConverter
     }
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 }
 
 public class SubIndexToIsEnabledConverter : IMultiValueConverter
@@ -158,9 +175,7 @@ public class SubIndexToIsEnabledConverter : IMultiValueConverter
     }
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 }
 
 [ValueConversion(typeof(IEnumerable<Chapter>), typeof(DoubleCollection))]
@@ -184,9 +199,7 @@ public class ChaptersToTicksConverter : IValueConverter
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 }
 
 [ValueConversion(typeof(IEnumerable<Chapter>), typeof(TickPlacement))]
@@ -205,9 +218,7 @@ public class ChaptersToTickPlacementConverter : IValueConverter
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 }
 
 public class AspectRatioIsCheckedConverter : IMultiValueConverter
@@ -228,7 +239,5 @@ public class AspectRatioIsCheckedConverter : IMultiValueConverter
     }
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 }

@@ -121,8 +121,6 @@ public class AppActions
         ];
     }
 
-    // ReSharper disable NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
-
     #region Command used in key
 
     public DelegateCommand CmdOpenNextFile => field ??= new(() =>
@@ -524,10 +522,11 @@ public class AppActions
 
     public DelegateCommand CmdSetSubtitlesFont => field ??= new(() =>
     {
-        ColorFontDialog dialog = new();
-
-        dialog.Topmost = _config.AlwaysOnTop;
-        dialog.Font = new FontInfo(new FontFamily(_config.Subs.SubsFontFamily), _config.Subs.SubsFontSize, (FontStyle)_fontStyleConv.ConvertFromString(_config.Subs.SubsFontStyle)!, (FontStretch)_fontStretchConv.ConvertFromString(_config.Subs.SubsFontStretch)!, (FontWeight)_fontWeightConv.ConvertFromString(_config.Subs.SubsFontWeight)!, new SolidColorBrush(Colors.Black));
+        ColorFontDialog dialog = new()
+        {
+            Topmost = _config.AlwaysOnTop,
+            Font = new FontInfo(new FontFamily(_config.Subs.SubsFontFamily), _config.Subs.SubsFontSize, (FontStyle)_fontStyleConv.ConvertFromString(_config.Subs.SubsFontStyle)!, (FontStretch)_fontStretchConv.ConvertFromString(_config.Subs.SubsFontStretch)!, (FontWeight)_fontWeightConv.ConvertFromString(_config.Subs.SubsFontWeight)!, new SolidColorBrush(Colors.Black))
+        };
 
         _player.Activity.ForceFullActive();
 
@@ -622,8 +621,6 @@ public class AppActions
     });
 
     #endregion
-
-    // ReSharper restore NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
 
     // TODO: L: make it command?
     public void SaveAllConfig()

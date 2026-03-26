@@ -237,16 +237,6 @@
                             Text="{Binding FL.PlayerConfig.Player.SeekAccurateFixMargin, Converter={StaticResource TicksToMilliSecondsConv}}"
                             helpers:TextBoxHelper.OnlyNumeric="Uint" />
                     </StackPanel>
-
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock
-                            Width="180"
-                            Text="Seek GetFrame Fix Margin (ms)" />
-                        <TextBox
-                            Width="100"
-                            Text="{Binding FL.PlayerConfig.Player.SeekGetFrameFixMargin, Converter={StaticResource TicksToMilliSecondsConv}}"
-                            helpers:TextBoxHelper.OnlyNumeric="Uint" />
-                    </StackPanel>
                 </StackPanel>
             </GroupBox>
 

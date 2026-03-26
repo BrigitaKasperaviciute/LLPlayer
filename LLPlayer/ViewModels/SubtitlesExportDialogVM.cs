@@ -39,7 +39,6 @@ public class SubtitlesExportDialogVM : Bindable, IDialogAware
 
     public TranslateExportOptions SelectedTranslateOpts { get; set => Set(ref field, value); }
 
-    [field: AllowNull, MaybeNull]
     public DelegateCommand CmdExport => field ??= new(() =>
     {
         var playlist = FL.Player.Playlist.Selected;

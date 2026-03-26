@@ -44,7 +44,8 @@ public class BooleanToVisibilityMiscConverter : IValueConverter
         return (bool)value ? Visibility.Visible : FalseVisibility;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
 }
 
 [ValueConversion(typeof(double), typeof(double))]
@@ -103,7 +104,8 @@ public class EnumToStringConverter : IValueConverter
         }
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
 }
 
 [ValueConversion(typeof(Enum), typeof(string))]
@@ -119,9 +121,7 @@ public class EnumToDescriptionConverter : IValueConverter
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 }
 
 [ValueConversion(typeof(Enum), typeof(bool))]
@@ -155,9 +155,7 @@ public class EnumToVisibilityConverter : IValueConverter
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 }
 
 [ValueConversion(typeof(Color), typeof(Brush))]
@@ -166,18 +164,16 @@ public class ColorToBrushConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is Color color)
-        {
             return new SolidColorBrush(color);
-        }
+
         return Binding.DoNothing;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is SolidColorBrush brush)
-        {
             return brush.Color;
-        }
+
         return default(Color);
     }
 }
@@ -232,9 +228,7 @@ public class KeyToStringConverter : IValueConverter
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 }
 
 [ValueConversion(typeof(long), typeof(string))]
@@ -251,9 +245,7 @@ public class FileSizeHumanConverter : IValueConverter
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
+        => throw new NotImplementedException();
 
     private static string FormatBytes(long bytes)
     {

@@ -69,7 +69,7 @@ public class CheatSheetDialogVM : Bindable, IDialogAware
                 KeyBindings = g.ToList()!
             }).ToList();
 
-        KeyBindingGroups = new List<KeyBindingCSGroup>(groups);
+        KeyBindingGroups = [.. groups];
 
         List<ListCollectionView> collectionViews = KeyBindingGroups.Select(g => (ListCollectionView)CollectionViewSource.GetDefaultView(g.KeyBindings))
             .ToList();
@@ -121,7 +121,7 @@ public class CheatSheetDialogVM : Bindable, IDialogAware
     private readonly List<ListCollectionView> _collectionViews;
     public List<KeyBindingCSGroup> KeyBindingGroups { get; set; }
 
-    public DelegateCommand<KeyBindingCS>? CmdAction => field ??= new((key) =>
+    public DelegateCommand<KeyBindingCS> CmdAction => field ??= new((key) =>
     {
         FL.Player.Activity.ForceFullActive();
         key.ActionInternal.Invoke();
@@ -147,7 +147,6 @@ public class KeyBindingCS
     public required Key Key { get; init; }
     public required string KeyName { get; init; }
 
-    [field: AllowNull, MaybeNull]
     public string Shortcut
     {
         get
@@ -181,7 +180,6 @@ public class KeyBindingCSGroup
 {
     public required KeyBindingActionGroup Group { get; init; }
 
-    [field: AllowNull, MaybeNull]
     public string GroupName => field ??= Group.ToString();
     public required List<KeyBindingCS> KeyBindings { get; init; }
 

@@ -13,6 +13,9 @@ public partial class SettingsVideo : UserControl
 
     private void ValidationRatio(object sender, TextCompositionEventArgs e)
     {
-        e.Handled = !Regex.IsMatch(e.Text, @"^[0-9\.\,\/\:]+$");
+        e.Handled = !RegRatio().IsMatch(e.Text);
     }
+
+    [GeneratedRegex(@"^[0-9\.\,\/\:]+$")]
+    private static partial Regex RegRatio();
 }

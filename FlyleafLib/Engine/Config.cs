@@ -1,10 +1,7 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Windows.Data;
 
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaFramework.MediaDecoder;
@@ -14,7 +11,6 @@ using FlyleafLib.MediaPlayer;
 using FlyleafLib.MediaPlayer.Translation;
 using FlyleafLib.MediaPlayer.Translation.Services;
 using FlyleafLib.Plugins;
-using static FlyleafLib.Utils;
 
 namespace FlyleafLib;
 
@@ -23,7 +19,7 @@ namespace FlyleafLib;
 /// </summary>
 public class Config : NotifyPropertyChanged
 {
-    static JsonSerializerOptions jsonOpts = new() { WriteIndented = true };
+    public static JsonSerializerOptions jsonOpts = new() { WriteIndented = true };
 
     public Config()
     {
@@ -36,12 +32,12 @@ public class Config : NotifyPropertyChanged
 
             if (defaultOptions == null || defaultOptions.Count == 0) continue;
 
-            Plugins.Add(plugin.Name, new ObservableDictionary<string, string>());
+            Plugins.Add(plugin.Name, []);
             foreach (var opt in defaultOptions)
                 Plugins[plugin.Name].Add(opt.Key, opt.Value);
         }
         // save default plugin options for later
-        _PluginsDefault = Plugins;
+        defaultPlugins = Plugins;
 
         Player.config = this;
         Demuxer.config = this;
@@ -81,13 +77,13 @@ public class Config : NotifyPropertyChanged
 
         config.Subtitles.SetChildren();
 
-        // Restore the plugin options initialized by the constructor, as they are overwritten during deserialization.
+        // Restore the plugin options initialized by the constructor, as they are overwritten after deserialization.
 
         // Remove removed plugin options
         foreach (var plugin in config.Plugins)
         {
             // plugin deleted
-            if (!config._PluginsDefault.ContainsKey(plugin.Key))
+            if (!config.defaultPlugins.ContainsKey(plugin.Key))
             {
                 config.Plugins.Remove(plugin.Key);
                 continue;
@@ -95,16 +91,12 @@ public class Config : NotifyPropertyChanged
 
             // plugin option deleted
             foreach (var opt in plugin.Value)
-            {
-                if (!config._PluginsDefault[plugin.Key].ContainsKey(opt.Key))
-                {
+                if (!config.defaultPlugins[plugin.Key].ContainsKey(opt.Key))
                     config.Plugins[plugin.Key].Remove(opt.Key);
-                }
-            }
         }
 
         // Restore added plugin options
-        foreach (var plugin in config._PluginsDefault)
+        foreach (var plugin in config.defaultPlugins)
         {
             // plugin added
             if (!config.Plugins.ContainsKey(plugin.Key))
@@ -115,12 +107,8 @@ public class Config : NotifyPropertyChanged
 
             // plugin option added
             foreach (var opt in plugin.Value)
-            {
                 if (!config.Plugins[plugin.Key].ContainsKey(opt.Key))
-                {
                     config.Plugins[plugin.Key][opt.Key] = opt.Value;
-                }
-            }
         }
 
         config.UpdateDefault();
@@ -211,19 +199,20 @@ public class Config : NotifyPropertyChanged
     [JsonIgnore]
     public string           LoadedPath  { get; private set; }
 
-    public PlayerConfig     Player      { get; set; } = new PlayerConfig();
-    public DemuxerConfig    Demuxer     { get; set; } = new DemuxerConfig();
-    public DecoderConfig    Decoder     { get; set; } = new DecoderConfig();
-    public VideoConfig      Video       { get; set; } = new VideoConfig();
-    public AudioConfig      Audio       { get; set; } = new AudioConfig();
-    public SubtitlesConfig  Subtitles   { get; set; } = new SubtitlesConfig();
-    public DataConfig       Data        { get; set; } = new DataConfig();
+    public PlayerConfig     Player      { get; set; } = new();
+    public DemuxerConfig    Demuxer     { get; set; } = new();
+    public DecoderConfig    Decoder     { get; set; } = new();
+    public VideoConfig      Video       { get; set; } = new();
+    public AudioConfig      Audio       { get; set; } = new();
+    public SubtitlesConfig  Subtitles   { get; set; } = new();
+    public DataConfig       Data        { get; set; } = new();
 
     public Dictionary<string, ObservableDictionary<string, string>>
-                            Plugins     { get; set; } = new();
+                            Plugins     { get; set; } = [];
     private
            Dictionary<string, ObservableDictionary<string, string>>
-                            _PluginsDefault;
+                            defaultPlugins;
+
     public class PlayerConfig : NotifyPropertyChanged
     {
         public PlayerConfig Clone()
@@ -264,9 +253,10 @@ public class Config : NotifyPropertyChanged
                         KeyBindings                 { get; set; } = new KeysConfig();
 
         /// <summary>
-        /// Fps while the player is not playing
+        /// Zero Latency forces playback at the very last frame received (Live Video Only)
         /// </summary>
-        public double   IdleFps                     { get; set; } = 60.0;
+        public bool     ZeroLatency                 { get => _ZeroLatency; set { Set(ref _ZeroLatency, value); if (config != null) config.Decoder.LowDelay = value; if (player != null && player.IsPlaying) { player.Pause(); player.Play(); } } }
+        bool _ZeroLatency;
 
         /// <summary>
         /// Max Latency (ticks) forces playback (with speed x1+) to stay at the end of the live network stream (default: 0 - disabled)
@@ -341,11 +331,6 @@ public class Config : NotifyPropertyChanged
         public long     SeekAccurateFixMargin       { get; set => Set(ref field, value); } = TimeSpan.FromMilliseconds(0).Ticks;
 
         /// <summary>
-        /// Margin time to move back forward when getting frame (ticks)
-        /// </summary>
-        public long     SeekGetFrameFixMargin       { get; set => Set(ref field, value); } = TimeSpan.FromMilliseconds(3000).Ticks;
-
-        /// <summary>
         /// Snapshot encoding will be used (valid formats bmp, png, jpg/jpeg)
         /// </summary>
         public string   SnapshotFormat              { get ;set; } = "bmp";
@@ -365,7 +350,8 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Refreshes CurTime in UI on every frame (can cause performance issues)
         /// </summary>
-        public bool     UICurTimePerFrame           { get; set; } = false;
+        public UIRefreshType
+                        UICurTime                   { get; set; } = UIRefreshType.PerFrameSecond;
 
         /// <summary>
         /// The upper limit of the volume amplifier
@@ -398,7 +384,7 @@ public class Config : NotifyPropertyChanged
         public bool     SeekOffsetAccurate4         { get; set; } = false;
         public double   SpeedOffset                 { get; set; } = 0.10;
         public double   SpeedOffset2                { get; set; } = 0.25;
-        public int      ZoomOffset                  { get => _ZoomOffset; set { if (Set(ref _ZoomOffset, value)) player?.ResetAll(); } }
+        public int      ZoomOffset                  { get => _ZoomOffset; set { if (SetUI(ref _ZoomOffset, value)) player?.ResetAll(); } }
         int _ZoomOffset = 10;
 
         public int      VolumeOffset                { get; set; } = 5;
@@ -409,9 +395,9 @@ public class Config : NotifyPropertyChanged
         {
             DemuxerConfig demuxer = (DemuxerConfig) MemberwiseClone();
 
-            demuxer.FormatOpt       = new Dictionary<string, string>();
-            demuxer.AudioFormatOpt  = new Dictionary<string, string>();
-            demuxer.SubtitlesFormatOpt = new Dictionary<string, string>();
+            demuxer.FormatOpt           = [];
+            demuxer.AudioFormatOpt      = [];
+            demuxer.SubtitlesFormatOpt  = [];
 
             foreach (var kv in FormatOpt) demuxer.FormatOpt.Add(kv.Key, kv.Value);
             foreach (var kv in AudioFormatOpt) demuxer.AudioFormatOpt.Add(kv.Key, kv.Value);
@@ -449,7 +435,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// List of FFmpeg formats to be excluded from interrupts
         /// </summary>
-        public List<string>     ExcludeInterruptFmts{ get; set; } = new List<string>() { "rtsp" };
+        public List<string>     ExcludeInterruptFmts{ get; set; } = ["rtsp"];
 
         /// <summary>
         /// Maximum allowed duration ticks for buffering
@@ -468,101 +454,100 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Maximuim allowed packets for buffering (as an extra check along with BufferDuration)
         /// </summary>
-        public long             BufferPackets   { get; set; }
+        public long             BufferPackets       { get; set; }
 
         /// <summary>
         /// Maximuim allowed audio packets (when reached it will drop the extra packets and will fire the AudioLimit event)
         /// </summary>
-        public long             MaxAudioPackets { get; set; }
+        public long             MaxAudioPackets     { get; set; }
 
         /// <summary>
         /// Maximum allowed errors before stopping
         /// </summary>
-        public int              MaxErrors       { get; set; } = 30;
+        public int              MaxErrors           { get; set; } = 30;
 
         /// <summary>
         /// Custom IO Stream buffer size (in bytes) for the AVIO Context
         /// </summary>
-        public int              IOStreamBufferSize
-                                                { get; set; } = 0x200000;
+        public int              IOStreamBufferSize  { get; set; } = 0x200000;
 
         /// <summary>
         /// avformat_close_input timeout (ticks) for protocols that support interrupts
         /// </summary>
-        public long             CloseTimeout    { get => closeTimeout; set { closeTimeout = value; closeTimeoutMs = value / 10000; } }
+        public long             CloseTimeout        { get => closeTimeout; set { closeTimeout = value; closeTimeoutMs = value / 10000; } }
         private long closeTimeout = 1 * 1000 * 10000;
         internal long closeTimeoutMs = 1 * 1000;
 
         /// <summary>
         /// avformat_open_input + avformat_find_stream_info timeout (ticks) for protocols that support interrupts (should be related to probesize/analyzeduration)
         /// </summary>
-        public long             OpenTimeout     { get => openTimeout; set { openTimeout = value; openTimeoutMs = value / 10000; } }
+        public long             OpenTimeout         { get => openTimeout; set { openTimeout = value; openTimeoutMs = value / 10000; } }
         private long openTimeout = 5 * 60 * (long)1000 * 10000;
         internal long openTimeoutMs = 5 * 60 * 1000;
 
         /// <summary>
         /// av_read_frame timeout (ticks) for protocols that support interrupts
         /// </summary>
-        public long             ReadTimeout     { get => readTimeout; set { readTimeout = value; readTimeoutMs = value / 10000; } }
+        public long             ReadTimeout         { get => readTimeout; set { readTimeout = value; readTimeoutMs = value / 10000; } }
         private long readTimeout = 10 * 1000 * 10000;
         internal long readTimeoutMs = 10 * 1000;
 
         /// <summary>
         /// av_read_frame timeout (ticks) for protocols that support interrupts (for Live streams)
         /// </summary>
-        public long             ReadLiveTimeout { get => readLiveTimeout; set { readLiveTimeout = value; readLiveTimeoutMs = value / 10000; } }
+        public long             ReadLiveTimeout     { get => readLiveTimeout; set { readLiveTimeout = value; readLiveTimeoutMs = value / 10000; } }
         private long readLiveTimeout = 20 * 1000 * 10000;
         internal long readLiveTimeoutMs = 20 * 1000;
 
         /// <summary>
         /// av_seek_frame timeout (ticks) for protocols that support interrupts
         /// </summary>
-        public long             SeekTimeout     { get => seekTimeout; set { seekTimeout = value; seekTimeoutMs = value / 10000; } }
+        public long             SeekTimeout         { get => seekTimeout; set { seekTimeout = value; seekTimeoutMs = value / 10000; } }
         private long seekTimeout = 8 * 1000 * 10000;
         internal long seekTimeoutMs = 8 * 1000;
 
         /// <summary>
         /// Forces Input Format
         /// </summary>
-        public string           ForceFormat     { get; set; }
+        public string           ForceFormat         { get; set; }
 
         /// <summary>
         /// Forces FPS for NoTimestamp formats (such as h264/hevc)
         /// </summary>
-        public double           ForceFPS        { get; set; }
+        public double           ForceFPS            { get; set; }
 
         /// <summary>
         /// FFmpeg's format flags for demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
         /// eg. FormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
         /// </summary>
-        public DemuxerFlags     FormatFlags     { get; set; } = DemuxerFlags.DiscardCorrupt;// FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
+        public DemuxerFlags     FormatFlags         { get; set; } = DemuxerFlags.DiscardCorrupt;// FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
 
         /// <summary>
         /// Certain muxers and demuxers do nesting (they open one or more additional internal format contexts). This will pass the FormatOpt and HTTPQuery params to the underlying contexts)
         /// </summary>
         public bool             FormatOptToUnderlying
-                                                { get; set; }
+                                                    { get; set; }
 
         /// <summary>
         /// Passes original's Url HTTP Query String parameters to underlying
         /// </summary>
         public bool             DefaultHTTPQueryToUnderlying
-                                                { get; set; } = true;
+                                                    { get; set; } = true;
 
         /// <summary>
         /// HTTP Query String parameters to pass to underlying
         /// </summary>
         public Dictionary<string, string>
                                 ExtraHTTPQueryParamsToUnderlying
-                                                { get; set; } = new();
+                                                    { get; set; } = [];
 
         /// <summary>
         /// FFmpeg's format options for demuxer
         /// </summary>
         public Dictionary<string, string>
-                                FormatOpt       { get; set; } = DefaultVideoFormatOpt();
+                                FormatOpt           { get; set; } = DefaultVideoFormatOpt();
         public Dictionary<string, string>
-                                AudioFormatOpt  { get; set; } = DefaultVideoFormatOpt();
+                                AudioFormatOpt      { get; set; } = DefaultVideoFormatOpt();
 
         public Dictionary<string, string>
                                 SubtitlesFormatOpt  { get; set; } = DefaultVideoFormatOpt();
@@ -617,72 +602,95 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Threads that will be used from the decoder
         /// </summary>
-        public int              VideoThreads    { get; set; } = Environment.ProcessorCount;
+        public int              VideoThreads        { get; set; } = Environment.ProcessorCount;
 
         /// <summary>
         /// Maximum video frames to be decoded and processed for rendering
         /// </summary>
-        public int              MaxVideoFrames  { get => _MaxVideoFrames; set { if (Set(ref _MaxVideoFrames, value)) { player?.RefreshMaxVideoFrames(); } } }
+        public int              MaxVideoFrames      { get => _MaxVideoFrames;   set { if (Set(ref _MaxVideoFrames, value)) { player?.RefreshMaxVideoFrames(); } } }
         int _MaxVideoFrames = 4;
+        internal void SetMaxVideoFrames(int maxVideoFrames) { _MaxVideoFrames = maxVideoFrames; RaiseUI(nameof(MaxVideoFrames)); } // can be updated by video decoder if fails to allocate them
 
         /// <summary>
         /// Maximum audio frames to be decoded and processed for playback
         /// </summary>
-        public int              MaxAudioFrames  { get; set; } = 10;
+        public int              MaxAudioFrames      { get; set; } = 5;
 
         /// <summary>
         /// Maximum subtitle frames to be decoded
         /// </summary>
-        public int              MaxSubsFrames   { get; set; } = 1;
+        public int              MaxSubsFrames       { get; set; } = 1;
 
         /// <summary>
         /// Maximum data frames to be decoded
         /// </summary>
-        public int              MaxDataFrames   { get; set; } = 100;
+        public int              MaxDataFrames       { get; set; } = 100;
 
         /// <summary>
         /// Maximum allowed errors before stopping
         /// </summary>
-        public int              MaxErrors       { get; set; } = 200;
-
-        /// <summary>
-        /// Whether or not to use decoder's textures directly as shader resources
-        /// (TBR: Better performance but might need to be disabled while video input has padding or not supported by older Direct3D versions)
-        /// </summary>
-        public ZeroCopy         ZeroCopy        { get => _ZeroCopy; set { if (SetUI(ref _ZeroCopy, value) && player != null && player.Video.isOpened) player.VideoDecoder?.RecalculateZeroCopy(); } }
-        ZeroCopy _ZeroCopy = ZeroCopy.Auto;
+        public int              MaxErrors           { get; set; } = 200;
 
         /// <summary>
         /// Allows video accceleration even in codec's profile mismatch
         /// </summary>
-        public bool             AllowProfileMismatch
-                                                { get => _AllowProfileMismatch; set => SetUI(ref _AllowProfileMismatch, value); }
-        bool _AllowProfileMismatch;
+        public bool             AllowProfileMismatch{ get => _AllowProfileMismatch; set => SetUI(ref _AllowProfileMismatch, value); }
+        bool _AllowProfileMismatch = true;
 
         /// <summary>
         /// Allows corrupted frames (Parses AV_CODEC_FLAG_OUTPUT_CORRUPT to AVCodecContext)
         /// </summary>
-        public bool             ShowCorrupted   { get => _ShowCorrupted; set => SetUI(ref _ShowCorrupted, value); }
+        public bool             ShowCorrupted       { get => _ShowCorrupted;        set => SetUI(ref _ShowCorrupted, value); }
         bool _ShowCorrupted;
 
         /// <summary>
-        /// Forces low delay (Parses AV_CODEC_FLAG_LOW_DELAY to AVCodecContext) (auto-enabled with MaxLatency)
+        /// Ensures that after a key packet receives a also key frame (can create artifacts on some broken formats when disabled and seek issues when enabled)
         /// </summary>
-        public bool             LowDelay        { get => _LowDelay; set => SetUI(ref _LowDelay, value); }
+        public bool             KeyFrameValidation  { get => _KeyFrameValidation;   set => SetUI(ref _KeyFrameValidation, value); }
+        internal bool _KeyFrameValidation;
+
+        /// <summary>
+        /// Forces low delay (Parses AV_CODEC_FLAG2_FAST or AV_CODEC_FLAG_LOW_DELAY -based on DropFrames- to AVCodecContext) (auto-enabled with MaxLatency)
+        /// </summary>
+        public bool             LowDelay            { get => _LowDelay;             set => SetUI(ref _LowDelay, value); }
         bool _LowDelay;
 
+        /// <summary>
+        /// Sets AVCodecContext skip_frame to None or Default (affects also LowDelay)
+        /// </summary>
+        public bool             AllowDropFrames     { get => _AllowDropFrames;      set => SetUI(ref _AllowDropFrames, value); }
+        bool _AllowDropFrames;
+
+        public string           AudioCodec          { get => _AudioCodec;           set => SetUI(ref _AudioCodec, value); }
+        string _AudioCodec;
+
+        public string           VideoCodec          { get => _VideoCodec;           set => SetUI(ref _VideoCodec, value); }
+        string _VideoCodec;
+
+        public string           SubtitlesCodec      { get => _SubtitlesCodec;           set => SetUI(ref _SubtitlesCodec, value); }
+        string _SubtitlesCodec;
+
+        public string GetCodecPtr(MediaType type)
+            => type == MediaType.Video ? _VideoCodec : type == MediaType.Audio ? _AudioCodec : _SubtitlesCodec;
+
         public Dictionary<string, string>
-                                AudioCodecOpt       { get; set; } = new();
+                                AudioCodecOpt       { get; set; } = [];
         public Dictionary<string, string>
-                                VideoCodecOpt       { get; set; } = new();
+                                VideoCodecOpt       { get; set; } = [];
         public Dictionary<string, string>
-                                SubtitlesCodecOpt   { get; set; } = new();
+                                SubtitlesCodecOpt   { get; set; } = [];
 
         public Dictionary<string, string> GetCodecOptPtr(MediaType type)
             => type == MediaType.Video ? VideoCodecOpt : type == MediaType.Audio ? AudioCodecOpt : SubtitlesCodecOpt;
     }
     public class VideoConfig : NotifyPropertyChanged
     {
+        public VideoConfig()
+        {
+            BindingOperations.EnableCollectionSynchronization(Filters,  lockFilters);
+            BindingOperations.EnableCollectionSynchronization(D3Filters,lockD3Filters);
+        }
+
         public VideoConfig Clone()
         {
             VideoConfig video = (VideoConfig) MemberwiseClone();
@@ -702,13 +710,13 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Video aspect ratio
         /// </summary>
-        public AspectRatio      AspectRatio                 { get => _AspectRatio;  set { if (Set(ref _AspectRatio, value) && player != null && player.renderer != null && !player.renderer.SCDisposed) lock(player.renderer.lockDevice) {  player.renderer.SetViewport(); if (player.renderer.child != null) player.renderer.child.SetViewport(); } } }
+        public AspectRatio      AspectRatio                 { get => _AspectRatio;          set { if (Set(ref _AspectRatio, value))     player?.renderer?.UpdateAspectRatio(); } }
         AspectRatio    _AspectRatio = AspectRatio.Keep;
 
         /// <summary>
         /// Custom aspect ratio (AspectRatio must be set to Custom to have an effect)
         /// </summary>
-        public AspectRatio      CustomAspectRatio           { get => _CustomAspectRatio;  set { if (Set(ref _CustomAspectRatio, value) && AspectRatio == AspectRatio.Custom) { _AspectRatio = AspectRatio.Fill; AspectRatio = AspectRatio.Custom; } } }
+        public AspectRatio      CustomAspectRatio           { get => _CustomAspectRatio;    set { if (Set(ref _CustomAspectRatio, value) && AspectRatio == AspectRatio.Custom) { _AspectRatio = AspectRatio.Fill; AspectRatio = AspectRatio.Custom; } } }
         AspectRatio    _CustomAspectRatio = new(16, 9);
 
         /// <summary>
@@ -722,6 +730,14 @@ public class Config : NotifyPropertyChanged
         /// Clears the screen on stop/close/open
         /// </summary>
         public bool             ClearScreen                 { get; set; } = true;
+
+        /// <summary>
+        /// Cropping rectagle to crop the output frame (based on frame size)
+        /// </summary>
+        [JsonIgnore]
+        public CropRect         Crop                        { get => _Crop;             set { _Crop = value; HasUserCrop = _Crop != CropRect.Empty; player?.renderer?.UpdateCropping(); } }
+        internal CropRect _Crop = CropRect.Empty;
+        internal bool HasUserCrop = false;
 
         /// <summary>
         /// Whether video should be allowed
@@ -749,7 +765,7 @@ public class Config : NotifyPropertyChanged
         /// <summary>
         /// Custom max vertical resolution that will be used from the input/stream suggester plugins
         /// </summary>
-        public int              MaxVerticalResolutionCustom { get => _MaxVerticalResolutionCustom; set => Set(ref _MaxVerticalResolutionCustom, value); }
+        public int              MaxVerticalResolutionCustom { get => _MaxVerticalResolutionCustom;  set => Set(ref _MaxVerticalResolutionCustom, value); }
         int _MaxVerticalResolutionCustom;
 
         /// <summary>
@@ -759,9 +775,10 @@ public class Config : NotifyPropertyChanged
         public int              MaxVerticalResolution       => MaxVerticalResolutionCustom == 0 ? (MaxVerticalResolutionAuto != 0 ? MaxVerticalResolutionAuto : 1080) : MaxVerticalResolutionCustom;
 
         /// <summary>
-        /// In case of no hardware accelerated or post process accelerated pixel formats will use FFmpeg's SwsScale
+        /// Sets Super Resolution (Nvidia / Intel - D3D11VP only)
         /// </summary>
-        public bool             SwsHighQuality              { get; set; } = false;
+        public bool             SuperResolution             { get => _SuperResolution;  set { if (Set(ref _SuperResolution, value)) player?.renderer?.UpdateSuperRes(); } }
+        internal bool _SuperResolution;
 
         /// <summary>
         /// Forces SwsScale instead of FlyleafVP for non HW decoded frames
@@ -775,49 +792,57 @@ public class Config : NotifyPropertyChanged
 
         /// <summary>
         /// Whether to use embedded video processor with custom pixel shaders or D3D11<br/>
-        /// (Currently D3D11 works only on video accelerated / hardware surfaces)<br/>
-        /// * FLVP supports HDR to SDR, D3D11 does not<br/>
-        /// * FLVP supports Pan Move/Zoom, D3D11 does not<br/>
-        /// * D3D11 possible performs better with color conversion and filters, FLVP supports only brightness/contrast filters<br/>
-        /// * D3D11 supports deinterlace (bob)
+        /// * FLVP supports HDR to SDR, hardware/software frames and more formats<br/>
+        /// * D3D11 uses less power, supports only hardware frames, deinterlace, super resolution and more accurate filters based on gpu
         /// </summary>
-        public VideoProcessors  VideoProcessor              { get => _VideoProcessor; set { if (Set(ref _VideoProcessor, value)) player?.renderer?.UpdateVideoProcessor(); } }
+        public VideoProcessors  VideoProcessor              { get => _VideoProcessor;   set { if (Set(ref _VideoProcessor, value))  player?.renderer?.UpdateVideoProcessor(); } }
         VideoProcessors _VideoProcessor = VideoProcessors.Auto;
 
         /// <summary>
         /// Whether Vsync should be enabled (0: Disabled, 1: Enabled)
         /// </summary>
-        public uint             VSync                       { get; set; }
+        public uint             VSync                       { get; set; } = 1;
 
         /// <summary>
-        /// Swap chain's present flags (mainly for waitable -None- or non-waitable -DoNotWait) (default: non-waitable)<br/>
-        /// Non-waitable swap chain will reduce re-buffering and audio/video desyncs
+        /// Sets DeInterlace (D3D11VP only)
         /// </summary>
-        public Vortice.DXGI.PresentFlags
-                                PresentFlags                { get; set; } = Vortice.DXGI.PresentFlags.DoNotWait;
+        public DeInterlace      DeInterlace                 { get => _DeInterlace;      set { if (Set(ref _DeInterlace, value))     player?.renderer?.UpdateDeinterlace(); } }
+        DeInterlace _DeInterlace = DeInterlace.Auto;
 
         /// <summary>
-        /// Enables the video processor to perform post process deinterlacing
-        /// (D3D11 video processor should be enabled and support bob deinterlace method)
+        /// Whether to use double rate (Bob) for DeInterlace instead normal (Weave/Blend)
         /// </summary>
-        public bool             Deinterlace                 { get=> _Deinterlace;   set { if (Set(ref _Deinterlace, value)) player?.renderer?.UpdateDeinterlace(); } }
-        bool _Deinterlace;
-
-        public bool             DeinterlaceBottomFirst      { get=> _DeinterlaceBottomFirst; set { if (Set(ref _DeinterlaceBottomFirst, value)) player?.renderer?.UpdateDeinterlace(); } }
-        bool _DeinterlaceBottomFirst;
+        public bool             DoubleRate                  { get => _DoubleRate;       set => Set(ref _DoubleRate, value); }
+        bool _DoubleRate = true;
 
         /// <summary>
         /// The HDR to SDR method that will be used by the pixel shader
         /// </summary>
-        public unsafe HDRtoSDRMethod
-                                HDRtoSDRMethod              { get => _HDRtoSDRMethod; set { if (Set(ref _HDRtoSDRMethod, value) && player != null && player.VideoDecoder.VideoStream != null && player.VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020) player.renderer.UpdateHDRtoSDR(); }}
+        public HDRtoSDRMethod   HDRtoSDRMethod              { get => _HDRtoSDRMethod;   set { if (Set(ref _HDRtoSDRMethod, value))  player?.renderer?.UpdateHDRtoSDR(); } }
         HDRtoSDRMethod _HDRtoSDRMethod = HDRtoSDRMethod.Hable;
 
-        /// <summary>
-        /// The HDR to SDR Tone float correnction (not used by Reinhard)
+       /// <summary>
+        /// SDR Display Peak Luminance - tonemap for HDR to SDR (based on Auto/Custom)
         /// </summary>
-        public unsafe float     HDRtoSDRTone                { get => _HDRtoSDRTone; set { if (Set(ref _HDRtoSDRTone, value) && player != null && player.VideoDecoder.VideoStream != null && player.VideoDecoder.VideoStream.ColorSpace == ColorSpace.BT2020) player.renderer.UpdateHDRtoSDR(); } }
-        float _HDRtoSDRTone = 1.4f;
+        [JsonIgnore]
+        public float SDRDisplayNits
+        {
+            get => SDRDisplayNitsCustom == 0 ? (SDRDisplayNitsAuto != 0 ? SDRDisplayNitsAuto : 200) : SDRDisplayNitsCustom;
+            set => SDRDisplayNitsCustom = value;
+        }
+
+        /// <summary>
+        /// SDR Display Peak Luminance - tonemap for HDR to SDR (Recommended)
+        /// </summary>
+        [JsonIgnore]
+        public float            SDRDisplayNitsAuto          { get => _SDRDisplayNitsAuto;   set { if (Set(ref _SDRDisplayNitsAuto, value) && _SDRDisplayNitsCustom == 0) { player?.renderer?.UpdateHDRtoSDR(); RaiseUI(nameof(SDRDisplayNits)); } } }
+        float _SDRDisplayNitsAuto;
+
+        /// <summary>
+        /// SDR Display Peak Luminance - tonemap for HDR to SDR (Custom)
+        /// </summary>
+        public float            SDRDisplayNitsCustom        { get => _SDRDisplayNitsCustom; set { if (Set(ref _SDRDisplayNitsCustom, value)) { player?.renderer?.UpdateHDRtoSDR(); RaiseUI(nameof(SDRDisplayNits)); } } }
+        float _SDRDisplayNitsCustom;
 
         /// <summary>
         /// Whether the renderer will use 10-bit swap chaing or 8-bit output
@@ -835,21 +860,36 @@ public class Config : NotifyPropertyChanged
         /// (TBR: causes slightly different colors with D3D11VP)
         /// </para>
         /// </summary>
-        public bool             SwapForceR8G8B8A8           { get; set; }
+        public bool             SwapForceR8G8B8A8           { get; set; } // TBR: Causes issues with NVidia Super Resolution (with some formats)
 
-        public Dictionary<VideoFilters, VideoFilter> Filters {get ; set; } = DefaultFilters();
+        /// <summary>
+        /// Enables custom Direct2D drawing over playback frames
+        /// </summary>
+        public bool             Use2DGraphics               { get; set; }
 
-        public static Dictionary<VideoFilters, VideoFilter> DefaultFilters()
-        {
-            Dictionary<VideoFilters, VideoFilter> filters = new();
+        public event EventHandler<Vortice.Direct2D1.ID2D1DeviceContext> D2DInitialized;
+        public event EventHandler<Vortice.Direct2D1.ID2D1DeviceContext> D2DDisposing;
+        public event EventHandler<Vortice.Direct2D1.ID2D1DeviceContext> D2DDraw;
 
-            var available = Enum.GetValues(typeof(VideoFilters));
+        internal void OnD2DInitialized(Renderer renderer, Vortice.Direct2D1.ID2D1DeviceContext context)
+            => D2DInitialized?.Invoke(renderer, context);
 
-            foreach(object filter in available)
-                filters.Add((VideoFilters)filter, new VideoFilter((VideoFilters)filter));
+        internal void OnD2DDisposing(Renderer renderer, Vortice.Direct2D1.ID2D1DeviceContext context)
+            => D2DDisposing?.Invoke(renderer, context);
 
-            return filters;
-        }
+        internal void OnD2DDraw(Renderer renderer, Vortice.Direct2D1.ID2D1DeviceContext context)
+            => D2DDraw?.Invoke(renderer, context);
+
+        /// <summary>
+        /// When you change a filter value from one VP will update also the other if exists (however might not exact same picture output)
+        /// </summary>
+        public bool             SyncVPFilters               { get; set; } = true;
+        public ObservableDictionary<VideoFilters, FLVideoFilter> Filters
+                                                            { get ; set; } = [];
+        public ObservableDictionary<VideoFilters, D3VideoFilter> D3Filters
+                                                            { get ; set; } = [];
+        internal readonly object lockFilters    = new();
+        internal readonly object lockD3Filters  = new();
     }
     public class AudioConfig : NotifyPropertyChanged
     {
@@ -878,12 +918,10 @@ public class Config : NotifyPropertyChanged
         internal void SetEnabled(bool enabled)      => Set(ref _Enabled, enabled, true, nameof(Enabled));
 
         /// <summary>
-        /// Whether to process samples with Filters or SWR (experimental)<br/>
-        /// 1. Requires FFmpeg avfilter lib<br/>
-        /// 2. Currently SWR performs better if you dont need filters<br/>
+        /// Uses FFmpeg filters instead of Swr (better speed quality and support for extra filters, requires avfilter-X.dll)
         /// </summary>
         public bool             FiltersEnabled      { get => _FiltersEnabled; set { if (Set(ref _FiltersEnabled, value && Engine.Config.FFmpegLoadProfile != LoadProfile.Main)) player?.AudioDecoder.SetupFiltersOrSwr(); } }
-        bool _FiltersEnabled = false;
+        bool _FiltersEnabled = true;
 
         /// <summary>
         /// List of filters for post processing the audio samples (experimental)<br/>
@@ -1013,10 +1051,9 @@ public class Config : NotifyPropertyChanged
 
         public SubtitlesConfig Clone()
         {
-            SubtitlesConfig subs = new();
-            subs = (SubtitlesConfig) MemberwiseClone();
+            SubtitlesConfig subs = (SubtitlesConfig) MemberwiseClone();
 
-            subs.Languages = new List<Language>();
+            subs.Languages = [];
             if (Languages != null) foreach(var lang in Languages) subs.Languages.Add(lang);
 
             subs.player = null;
@@ -1152,7 +1189,7 @@ public class Config : NotifyPropertyChanged
         /// Allowed input types to be searched locally for subtitles (empty list allows all types)
         /// </summary>
         public List<InputType>  SearchLocalOnInputType
-                                                    { get; set; } = new List<InputType>() { InputType.File, InputType.UNC, InputType.Torrent };
+                                                    { get; set; } = [InputType.File, InputType.UNC, InputType.Torrent];
 
         /// <summary>
         /// Whether to use online search plugins (see also <see cref="SearchOnlineOnInputType"/>)
@@ -1164,7 +1201,7 @@ public class Config : NotifyPropertyChanged
         /// Allowed input types to be searched online for subtitles (empty list allows all types)
         /// </summary>
         public List<InputType>  SearchOnlineOnInputType
-                                                    { get; set; } = new List<InputType>() { InputType.File, InputType.Torrent };
+                                                    { get; set; } = [InputType.File, InputType.UNC, InputType.Torrent];
 
         /// <summary>
         /// Subtitles parser (can be used for custom parsing)
@@ -1300,8 +1337,7 @@ public class Config : NotifyPropertyChanged
     {
         public DataConfig Clone()
         {
-            DataConfig data = new();
-            data = (DataConfig)MemberwiseClone();
+            DataConfig data = (DataConfig)MemberwiseClone();
 
             data.player = null;
 
@@ -1377,7 +1413,7 @@ public class EngineConfig
     /// <para>:console -> System.Console</para>
     /// <para>&lt;path&gt; -> Absolute or relative file path</para>
     /// </summary>
-    public string   LogOutput               { get => _LogOutput; set { _LogOutput = value; if (Engine.IsLoaded) Logger.SetOutput(); } }
+    public string   LogOutput               { get => _LogOutput; set { _LogOutput = value; if (Engine.IsLoaded) SetOutput(); } }
     string _LogOutput = "";
 
     /// <summary>
@@ -1408,16 +1444,11 @@ public class EngineConfig
     public string   PluginsPath             { get; set; } = "Plugins";
 
     /// <summary>
-    /// Updates Player.CurTime when the second changes otherwise on every UIRefreshInterval
-    /// </summary>
-    public bool     UICurTimePerSecond      { get; set; } = true;
-
-    /// <summary>
     /// <para>Activates Master Thread to monitor all the players and perform the required updates</para>
     /// <para>Required for Activity Mode, Stats &amp; Buffered Duration on Pause</para>
     /// </summary>
     public bool     UIRefresh               { get => _UIRefresh; set { _UIRefresh = value; if (value && Engine.IsLoaded) Engine.StartThread(); } }
-    static bool _UIRefresh;
+    static bool _UIRefresh = true;
 
     /// <summary>
     /// <para>How often should update the UI in ms (low values can cause performance issues)</para>
@@ -1455,8 +1486,16 @@ public class EngineConfig
             path = LoadedPath;
         }
 
-        jsonOptions ??= new JsonSerializerOptions { WriteIndented = true };
+        jsonOptions ??= Config.jsonOpts;
 
         File.WriteAllText(path, JsonSerializer.Serialize(this, jsonOptions));
     }
+}
+
+public enum UIRefreshType
+{
+    PerFrame,
+    PerFrameSecond,
+    PerUIRefreshInterval,
+    PerUISecond
 }

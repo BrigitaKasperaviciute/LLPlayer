@@ -100,7 +100,7 @@ public static class FlyleafLoader
         EngineConfig engineConfig = new()
         {
 #if DEBUG
-            PluginsPath = @":Plugins\bin\Plugins.NET9",
+            PluginsPath = @":Plugins\bin\Plugins.NET10",
 #else
             PluginsPath = ":Plugins",
 #endif
@@ -123,7 +123,6 @@ public static class FlyleafLoader
         Config config = new();
         config.Demuxer.FormatOptToUnderlying =
             true; // Mainly for HLS to pass the original query which might includes session keys
-        config.Audio.FiltersEnabled = true; // To allow embedded atempo filter for speed
         config.Video.GPUAdapter = ""; // Set it empty so it will include it when we save it
         config.Subtitles.SearchLocal = true;
         config.Subtitles.TranslateTargetLanguage = Language.Get(Utils.OriginalCulture).ToTargetLanguage() ?? TargetLanguage.EnglishAmerican; // try to set native language

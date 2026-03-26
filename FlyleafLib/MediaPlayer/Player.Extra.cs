@@ -1,15 +1,10 @@
-﻿using System;
-using System.Drawing.Imaging;
-using System.IO;
+﻿using System.Drawing.Imaging;
 using System.Windows;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
-
-using static FlyleafLib.Utils;
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer;
 
@@ -27,7 +22,7 @@ unsafe partial class Player
         if (!CanPlay)
             return;
 
-        long seekTs = CurTime - (CurTime % offset) - offset;
+        long seekTs = curTime - (curTime % offset) - offset;
 
         if (Config.Player.SeekAccurate || accurate)
             SeekAccurate(Math.Max((int) (seekTs / 10000), 0));
@@ -44,9 +39,9 @@ unsafe partial class Player
         if (!CanPlay)
             return;
 
-        long seekTs = CurTime - (CurTime % offset) + offset;
+        long seekTs = curTime - (curTime % offset) + offset;
 
-        if (seekTs > Duration && !isLive)
+        if (seekTs > duration && !isLive)
             return;
 
         if (Config.Player.SeekAccurate || accurate)
@@ -54,6 +49,9 @@ unsafe partial class Player
         else
             Seek((int)(seekTs / 10000), true);
     }
+
+    public void SeekToStart()   => Seek(0);
+    public void SeekToEnd()     => Seek((int)((Duration / 10_000) - TimeSpan.FromSeconds(5).TotalMilliseconds));
 
     public void SeekToChapter(Demuxer.Chapter chapter) =>
         /* TODO
@@ -64,7 +62,7 @@ unsafe partial class Player
 
     public void CopyToClipboard()
     {
-        var url = decoder.Playlist.Url;
+        var url = Playlist.Url;
         if (url == null)
             return;
 
@@ -73,10 +71,10 @@ unsafe partial class Player
     }
     public void CopyItemToClipboard()
     {
-        if (decoder.Playlist.Selected == null || decoder.Playlist.Selected.DirectUrl == null)
+        if (Playlist.Selected == null || Playlist.Selected.DirectUrl == null)
             return;
 
-        string url = decoder.Playlist.Selected.DirectUrl;
+        string url = Playlist.Selected.DirectUrl;
 
         Clipboard.SetText(url);
         OSDMessage = $"Copy {url}";
@@ -149,12 +147,10 @@ unsafe partial class Player
 
             if (CanDebug) Log.Debug($"SFI: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
 
-            curTime = vFrame.timestamp;
-            renderer.Present(vFrame);
+            renderer.RenderRequest(vFrame);
+            UpdateCurTime(vFrame.timestamp);
             reversePlaybackResync = true;
             vFrame = null;
-
-            UI(() => UpdateCurTime());
         }
     }
 
@@ -163,17 +159,17 @@ unsafe partial class Player
     bool shouldFlushPrev;
     public void ShowFrameNext()
     {
-        if (!Video.IsOpened || !CanPlay || VideoDemuxer.IsHLSLive)
+        if (!Video.IsOpened || !canPlay || VideoDemuxer.IsHLSLive)
             return;
 
         lock (lockActions)
         {
             Pause();
 
-            if (Status == Status.Ended)
+            if (status == Status.Ended)
             {
                 status = Status.Paused;
-                UI(() => Status = Status);
+                UI(() => Status = status);
             }
 
             shouldFlushPrev = true;
@@ -185,8 +181,7 @@ unsafe partial class Player
                 decoder.Flush();
                 shouldFlushNext = false;
 
-                var vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime));
-                VideoDecoder.DisposeFrame(vFrame);
+                VideoDecoder.DisposeFrame(VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(curTime)));
             }
 
             for (int i = 0; i < subNum; i++)
@@ -195,37 +190,35 @@ unsafe partial class Player
                 SubtitleClear(i);
             }
 
-            if (VideoDecoder.Frames.IsEmpty)
+            if (vFrames.IsEmpty)
                 vFrame = VideoDecoder.GetFrameNext();
             else
-                VideoDecoder.Frames.TryDequeue(out vFrame);
+                vFrames.TryDequeue(out vFrame);
 
             if (vFrame == null)
                 return;
 
             if (CanDebug) Log.Debug($"SFN: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
 
-            curTime = curTime = vFrame.timestamp;
-            renderer.Present(vFrame);
+            renderer.RenderRequest(vFrame);
+            UpdateCurTime(vFrame.timestamp);
             reversePlaybackResync = true;
             vFrame = null;
-
-            UI(() => UpdateCurTime());
         }
     }
     public void ShowFramePrev()
     {
-        if (!Video.IsOpened || !CanPlay || VideoDemuxer.IsHLSLive)
+        if (!Video.IsOpened || !canPlay || VideoDemuxer.IsHLSLive)
             return;
 
         lock (lockActions)
         {
             Pause();
 
-            if (Status == Status.Ended)
+            if (status == Status.Ended)
             {
                 status = Status.Paused;
-                UI(() => Status = Status);
+                UI(() => Status = status);
             }
 
             shouldFlushNext = true;
@@ -244,38 +237,22 @@ unsafe partial class Player
                 SubtitleClear(i);
             }
 
-            if (VideoDecoder.Frames.IsEmpty)
+            if (vFrames.IsEmpty)
             {
-                // Temp fix for previous timestamps until we seperate GetFrame for Extractor and the Player
-                reversePlaybackResync = true;
-                int askedFrame = VideoDecoder.GetFrameNumber(CurTime) - 1;
-                //Log.Debug($"CurTime1: {TicksToTime(CurTime)}, Asked: {askedFrame}");
-                vFrame = VideoDecoder.GetFrame(askedFrame);
-                if (vFrame == null) return;
-
-                int recvFrame = VideoDecoder.GetFrameNumber(vFrame.timestamp);
-                //Log.Debug($"CurTime2: {TicksToTime(vFrame.timestamp)}, Got: {recvFrame}");
-                if (askedFrame != recvFrame)
-                {
-                    VideoDecoder.DisposeFrame(vFrame);
-                    vFrame = null;
-                    vFrame = askedFrame > recvFrame
-                        ? VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime))
-                        : VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 2);
-                }
+                reversePlaybackResync = true; // Temp fix for previous timestamps until we seperate GetFrame for Extractor and the Player
+                vFrame = VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(CurTime) - 1, true);
             }
             else
-                VideoDecoder.Frames.TryDequeue(out vFrame);
+                vFrames.TryDequeue(out vFrame);
 
             if (vFrame == null)
                 return;
 
             if (CanDebug) Log.Debug($"SFB: {VideoDecoder.GetFrameNumber(vFrame.timestamp)}");
 
-            curTime = vFrame.timestamp;
-            renderer.Present(vFrame);
+            renderer.RenderRequest(vFrame);
+            UpdateCurTime(vFrame.timestamp);
             vFrame = null;
-            UI(() => UpdateCurTime()); // For some strange reason this will not be updated on KeyDown (only on KeyUp) which doesn't happen on ShowFrameNext (GPU overload? / Thread.Sleep underlying in UI thread?)
         }
     }
 

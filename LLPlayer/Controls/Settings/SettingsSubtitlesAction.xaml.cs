@@ -66,7 +66,7 @@ public class SettingsSubtitlesActionVM : Bindable
 
     public ObservableCollection<IMenuAction> MenuActions { get; } = new();
 
-    public DelegateCommand? CmdApplyContextMenu => field ??= new(() =>
+    public DelegateCommand CmdApplyContextMenu => field ??= new(() =>
     {
         ObservableCollection<IMenuAction> newActions = new(MenuActions.Select(a => (IMenuAction)a.Clone()));
 
@@ -74,7 +74,7 @@ public class SettingsSubtitlesActionVM : Bindable
         FL.Config.Subs.WordMenuActions = newActions;
     });
 
-    public DelegateCommand? CmdAddSearchAction => field ??= new(() =>
+    public DelegateCommand CmdAddSearchAction => field ??= new(() =>
     {
         MenuActions.Add(new SearchMenuAction
         {
@@ -83,17 +83,17 @@ public class SettingsSubtitlesActionVM : Bindable
         });
     });
 
-    public DelegateCommand? CmdAddClipboardAction => field ??= new(() =>
+    public DelegateCommand CmdAddClipboardAction => field ??= new(() =>
     {
         MenuActions.Add(new ClipboardMenuAction());
     });
 
-    public DelegateCommand? CmdAddClipboardAllAction => field ??= new(() =>
+    public DelegateCommand CmdAddClipboardAllAction => field ??= new(() =>
     {
         MenuActions.Add(new ClipboardAllMenuAction());
     });
 
-    public DelegateCommand<IMenuAction>? CmdRemoveAction => field ??= new((action) =>
+    public DelegateCommand<IMenuAction> CmdRemoveAction => field ??= new((action) =>
     {
         if (action != null)
         {

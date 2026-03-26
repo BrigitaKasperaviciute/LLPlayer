@@ -19,9 +19,9 @@ public class ColorHexRule : ValidationRule
     {
         if (value != null && Regex.IsMatch(value.ToString() ?? string.Empty, "^[0-9a-f]{6}$", RegexOptions.IgnoreCase))
         {
-            return new ValidationResult(true, null);
+            return new(true, null);
         }
 
-        return new ValidationResult(false, "Invalid");
+        return new(false, "Invalid");
     }
 }

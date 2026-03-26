@@ -87,7 +87,7 @@ public class SettingsSubtitlesVM : Bindable
         }
     }
 
-    public DelegateCommand? CmdConfigureLanguage => field ??= new(() =>
+    public DelegateCommand CmdConfigureLanguage => field ??= new(() =>
     {
         DialogParameters p = new()
         {

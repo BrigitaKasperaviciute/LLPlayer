@@ -5,7 +5,7 @@ using System.Windows.Input;
 
 namespace LLPlayer.Extensions;
 
-public static class TextBoxMiscHelper
+public static partial class TextBoxMiscHelper
 {
     public static bool GetIsHexValidationEnabled(DependencyObject obj)
     {
@@ -41,6 +41,9 @@ public static class TextBoxMiscHelper
 
     private static void OnPreviewTextInput(object sender, TextCompositionEventArgs e)
     {
-        e.Handled = !Regex.IsMatch(e.Text, "^[0-9a-f]+$", RegexOptions.IgnoreCase);
+        e.Handled = !RegHex().IsMatch(e.Text);
     }
+
+    [GeneratedRegex(@"^[0-9a-f]+$", RegexOptions.IgnoreCase, "en-150")]
+    private static partial Regex RegHex();
 }

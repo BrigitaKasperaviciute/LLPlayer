@@ -20,7 +20,7 @@ public class FlyleafOverlayVM : Bindable
         FL = fl;
     }
 
-    public DelegateCommand? CmdOnLoaded => field ??= new(() =>
+    public DelegateCommand CmdOnLoaded => field ??= new(() =>
     {
         SetupOSDStatus();
         SetupFlyleafContextMenu();

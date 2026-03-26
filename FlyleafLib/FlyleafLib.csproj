@@ -1,13 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net9.0-windows10.0.18362.0</TargetFrameworks>
-    <LangVersion>preview</LangVersion>
+    <TargetFrameworks>net10.0-windows10.0.18362.0</TargetFrameworks>
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
     <RepositoryUrl></RepositoryUrl>
     <Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-    <Version>3.8.4</Version>
+    <Version>3.9.4</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2025</Copyright>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
@@ -25,12 +24,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-windows10.0.18362.0|AnyCPU'">
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net10.0-windows10.0.18362.0|AnyCPU'">
     <WarningLevel>6</WarningLevel>
+    <NoWarn>1701;1702;WFO1000</NoWarn>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-windows10.0.18362.0|AnyCPU'">
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-windows10.0.18362.0|AnyCPU'">
     <WarningLevel>6</WarningLevel>
+    <NoWarn>1701;1702;WFO1000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -40,12 +41,12 @@
     <PackageReference Include="SearchPioneer.Lingua" Version="1.0.4" />
     <PackageReference Include="TesseractOCR" Version="5.5.1" />
     <PackageReference Include="UTF.Unknown" Version="2.5.1" />
-    <PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />
-    <PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
-    <PackageReference Include="Vortice.DirectComposition" Version="3.6.2" />
-    <PackageReference Include="Vortice.Mathematics" Version="1.9.2" />
-    <PackageReference Include="Vortice.MediaFoundation" Version="3.6.2" />
-    <PackageReference Include="Vortice.XAudio2" Version="3.6.2" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="3.7.6-beta" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.7.6-beta" />
+    <PackageReference Include="Vortice.DirectComposition" Version="3.7.6-beta" />
+    <PackageReference Include="Vortice.Mathematics" Version="1.9.3" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="3.7.6-beta" />
+    <PackageReference Include="Vortice.XAudio2" Version="3.7.6-beta" />
     <PackageReference Include="Whisper.net" Version="1.8.1" />
   </ItemGroup>
 

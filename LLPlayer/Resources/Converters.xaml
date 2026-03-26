@@ -5,12 +5,12 @@
 
     <!--Flyleaf Converters-->
     <flyleaf:StringToRationalConverter x:Key="StringToRationalConv"/>
-    <flyleaf:TicksToTimeConverter x:Key="TicksToTimeConv"/>
     <flyleaf:TicksToSecondsConverter x:Key="TicksToSecondsConv" />
     <flyleaf:TicksToTimeSpanConverter x:Key="TicksToTimeSpanConv"/>
     <flyleaf:TicksToMilliSecondsConverter x:Key="TicksToMilliSecondsConv"/>
 
     <!--Flyleaf WPF Converters-->
+    <conv:TicksToTimeConverter x:Key="TicksToTimeConv"/>
     <conv:QualityToLevelsConverter x:Key="QualityToLevelsConv"/>
     <conv:VolumeToLevelsConverter x:Key="VolumeToLevelsConv"/>
     <conv:SumConverter x:Key="SumConv"/>

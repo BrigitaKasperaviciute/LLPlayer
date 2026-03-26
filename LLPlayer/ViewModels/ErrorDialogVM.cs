@@ -61,7 +61,6 @@ public class ErrorDialogVM : Bindable, IDialogAware
 
     public string ErrorTitle => IsUnknown ? $"{ErrorType} Unknown Error" : $"{ErrorType} Error";
 
-    [field: AllowNull, MaybeNull]
     public DelegateCommand CmdCopyMessage => field ??= new(() =>
     {
         string text = $"""
@@ -89,7 +88,6 @@ public class ErrorDialogVM : Bindable, IDialogAware
         Clipboard.SetText(text);
     });
 
-    [field: AllowNull, MaybeNull]
     public DelegateCommand CmdCloseDialog => field ??= new(() =>
     {
         RequestClose.Invoke(ButtonResult.OK);

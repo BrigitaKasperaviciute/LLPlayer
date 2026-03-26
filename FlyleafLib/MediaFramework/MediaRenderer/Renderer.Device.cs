@@ -1,19 +1,19 @@
 ﻿using System.Numerics;
-using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
 
-using Vortice;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 using Vortice.DXGI.Debug;
 
+using ID3D11DeviceContext   = Vortice.Direct3D11.ID3D11DeviceContext;
+using ID3D11Device          = Vortice.Direct3D11.ID3D11Device;
+using ID2D1Device           = Vortice.Direct2D1.ID2D1Device;
+using ID2D1DeviceContext    = Vortice.Direct2D1.ID2D1DeviceContext;
+using ID2D1Bitmap1          = Vortice.Direct2D1.ID2D1Bitmap1;
+using BitmapProperties1     = Vortice.Direct2D1.BitmapProperties1;
+
 using FlyleafLib.MediaFramework.MediaDecoder;
-
-using static FlyleafLib.Logger;
-using System.Runtime.InteropServices;
-
-using ID3D11Device = Vortice.Direct3D11.ID3D11Device;
-using ID3D11DeviceContext = Vortice.Direct3D11.ID3D11DeviceContext;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
@@ -30,8 +30,8 @@ public unsafe partial class Renderer
         BindFlags = BindFlags.VertexBuffer
     };
 
-    static float[] vertexBufferData = new[]
-    {
+    static float[] vertexBufferData =
+    [
         -1.0f,  -1.0f,  0,      0.0f, 1.0f,
         -1.0f,   1.0f,  0,      0.0f, 0.0f,
          1.0f,  -1.0f,  0,      1.0f, 1.0f,
@@ -39,12 +39,10 @@ public unsafe partial class Renderer
          1.0f,  -1.0f,  0,      1.0f, 1.0f,
         -1.0f,   1.0f,  0,      0.0f, 0.0f,
          1.0f,   1.0f,  0,      1.0f, 0.0f
-    };
+    ];
 
-    static FeatureLevel[] featureLevelsAll = new[]
-    {
-        FeatureLevel.Level_12_1,
-        FeatureLevel.Level_12_0,
+    static FeatureLevel[] featureLevels =
+    [
         FeatureLevel.Level_11_1,
         FeatureLevel.Level_11_0,
         FeatureLevel.Level_10_1,
@@ -52,17 +50,7 @@ public unsafe partial class Renderer
         FeatureLevel.Level_9_3,
         FeatureLevel.Level_9_2,
         FeatureLevel.Level_9_1
-    };
-
-    static FeatureLevel[] featureLevels = new[]
-    {
-        FeatureLevel.Level_11_0,
-        FeatureLevel.Level_10_1,
-        FeatureLevel.Level_10_0,
-        FeatureLevel.Level_9_3,
-        FeatureLevel.Level_9_2,
-        FeatureLevel.Level_9_1
-    };
+    ];
 
     static BlendDescription blendDesc = new();
 
@@ -78,27 +66,42 @@ public unsafe partial class Renderer
         blendDesc.RenderTarget[0].RenderTargetWriteMask = ColorWriteEnable.All;
     }
 
+    internal ID3D11Device   Device;
+    IDXGIDevice1            dxgiDevice;
+    public GPUAdapter       GPUAdapter      => gpuAdapter;
+    IDXGIAdapter            dxgiAdapter;
+    GPUAdapter              gpuAdapter;
+    bool                    gpuForceWarp;
 
-    ID3D11DeviceContext context;
+    ID3D11DeviceContext     context;
 
-    ID3D11Buffer        vertexBuffer;
-    ID3D11InputLayout   inputLayout;
-    ID3D11RasterizerState
-                        rasterizerState;
-    ID3D11BlendState    blendStateAlpha;
+    ID3D11Buffer            vertexBuffer;
+    ID3D11InputLayout       inputLayout;
+    ID3D11RasterizerState   rasterizerState;
+    ID3D11BlendState        blendStateAlpha;
 
-    ID3D11VertexShader  ShaderVS;
-    ID3D11PixelShader   ShaderPS;
-    ID3D11PixelShader   ShaderBGRA;
+    ID3D11VertexShader      ShaderVS;
+    ID3D11PixelShader       ShaderPS;
+    ID3D11PixelShader       ShaderBGRA;
 
-    ID3D11Buffer        psBuffer;
-    PSBufferType        psBufferData;
+    ID3D11Buffer            psBuffer;
+    PSBufferType            psBufferData    = new();
 
-    ID3D11Buffer        vsBuffer;
-    VSBufferType        vsBufferData;
+    ID3D11Buffer            vsBuffer;
+    VSBufferType            vsBufferData    = new();
 
-    internal object     lockDevice = new();
-    bool                isFlushing;
+    internal object         lockDevice      = new();
+    bool                    isFlushing;
+
+    bool                    use2d;
+    ID2D1Device             device2d;
+    ID2D1DeviceContext      context2d;
+    ID2D1Bitmap1            bitmap2d;
+    BitmapProperties1       bitmapProps2d = new()
+    {
+        BitmapOptions   = Vortice.Direct2D1.BitmapOptions.Target | Vortice.Direct2D1.BitmapOptions.CannotDraw,
+        PixelFormat     = Vortice.DCommon.PixelFormat.Premultiplied
+    };
 
     public void Initialize(bool swapChain = true)
     {
@@ -111,10 +114,6 @@ public unsafe partial class Renderer
                 if (!Disposed)
                     Dispose();
 
-                Disposed = false;
-
-                ID3D11Device tempDevice;
-                IDXGIAdapter1 adapter = null;
                 var creationFlags       = DeviceCreationFlags.BgraSupport /*| DeviceCreationFlags.VideoSupport*/; // Let FFmpeg failed for VA if does not support it
                 var creationFlagsWarp   = DeviceCreationFlags.None;
 
@@ -126,80 +125,54 @@ public unsafe partial class Renderer
                 }
                 #endif
 
-                // Finding User Definied adapter
-                if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() != "WARP")
+                // Config or Default (null)
+                if (!gpuForceWarp && D3D11.D3D11CreateDevice(dxgiAdapter, dxgiAdapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out Device).Failure)
+                    gpuForceWarp = true;
+
+                // Forced or Fallback to WARP
+                if (gpuForceWarp)
+                    D3D11.D3D11CreateDevice(null, DriverType.Warp, creationFlagsWarp, featureLevels, out Device).CheckError();
+
+                Disposed    = false;
+                dxgiDevice  = Device.QueryInterface<IDXGIDevice1>();
+
+                // Find Device's Adapter from GPUAdapters (Dispose extra adapter) | Until we use a single device per adapter
+                if (dxgiAdapter == null)
                 {
-                    for (uint i=0; Engine.Video.Factory.EnumAdapters1(i, out adapter).Success; i++)
+                    var gpuAdapters = Engine.Video.GPUAdapters;
+                    dxgiAdapter     = dxgiDevice.GetAdapter();
+                    var desc        = dxgiAdapter.Description;
+                    bool dxgiExists = true;
+
+                    if (!gpuAdapters.TryGetValue(desc.Luid, out gpuAdapter))
                     {
-                        if (adapter.Description1.Description == Config.Video.GPUAdapter)
-                            break;
-
-                        if (Regex.IsMatch(adapter.Description1.Description + " luid=" + adapter.Description1.Luid, Config.Video.GPUAdapter, RegexOptions.IgnoreCase))
-                            break;
-
-                        adapter.Dispose();
+                        lock(gpuAdapters)
+                            if (!gpuAdapters.TryGetValue(desc.Luid, out gpuAdapter))
+                            {
+                                dxgiExists  = false;
+                                gpuAdapter  = Engine.Video.GetGPUAdapter(dxgiAdapter, desc);
+                                gpuAdapters.Add(gpuAdapter.Luid, gpuAdapter);
+                            }
                     }
 
-                    if (adapter == null)
+                    if (dxgiExists)
                     {
-                        Log.Error($"GPU Adapter with {Config.Video.GPUAdapter} has not been found. Falling back to default.");
-                        Config.Video.GPUAdapter = null;
+                        dxgiAdapter.Dispose();
+                        dxgiAdapter = gpuAdapter.dxgiAdapter;
                     }
                 }
 
-                // Creating WARP (force by user or us after late failure)
-                if (!string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) && Config.Video.GPUAdapter.ToUpper() == "WARP")
-                    D3D11.D3D11CreateDevice(null, DriverType.Warp, creationFlagsWarp, featureLevels, out tempDevice).CheckError();
+                context = Device.ImmediateContext;
+                dxgiDevice.MaximumFrameLatency = Config.Video.MaxFrameLatency;
+                using (var mthread = Device.QueryInterface<ID3D11Multithread>())
+                    mthread.SetMultithreadProtected(true);
 
-                // Creating User Defined or Default
-                else
+                if (use2d)
                 {
-                    // Creates the D3D11 Device based on selected adapter or default hardware (highest to lowest features and fall back to the WARP device. see http://go.microsoft.com/fwlink/?LinkId=286690)
-                    if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevelsAll, out tempDevice).Failure)
-                        if (D3D11.D3D11CreateDevice(adapter, adapter == null ? DriverType.Hardware : DriverType.Unknown, creationFlags, featureLevels, out tempDevice).Failure)
-                        {
-                            Config.Video.GPUAdapter = "WARP";
-                            D3D11.D3D11CreateDevice(null, DriverType.Warp, creationFlagsWarp, featureLevels, out tempDevice).CheckError();
-                        }
+                    device2d  = Vortice.Direct2D1.D2D1.D2D1CreateDevice(dxgiDevice);
+                    context2d = device2d.CreateDeviceContext();
+                    Config.Video.OnD2DInitialized(this, context2d);
                 }
-
-                Device = tempDevice.QueryInterface<ID3D11Device1>();
-                context= Device.ImmediateContext;
-
-                // Gets the default adapter from the D3D11 Device
-                if (adapter == null)
-                {
-                    Device.Tag = new Luid().ToString();
-                    using var deviceTmp = Device.QueryInterface<IDXGIDevice1>();
-                    using var adapterTmp = deviceTmp.GetAdapter();
-                    adapter = adapterTmp.QueryInterface<IDXGIAdapter1>();
-                }
-                else
-                    Device.Tag = adapter.Description.Luid.ToString();
-
-                if (Engine.Video.GPUAdapters.ContainsKey(adapter.Description1.Luid))
-                {
-                    GPUAdapter = Engine.Video.GPUAdapters[adapter.Description1.Luid];
-                    Config.Video.MaxVerticalResolutionAuto = GPUAdapter.MaxHeight;
-
-                    if (CanDebug)
-                    {
-                        string dump = $"GPU Adapter\r\n{GPUAdapter}\r\n";
-
-                        for (int i=0; i<GPUAdapter.Outputs.Count; i++)
-                            dump += $"[Output #{i+1}] {GPUAdapter.Outputs[i]}\r\n";
-
-                        Log.Debug(dump);
-                    }
-                }
-                else
-                    Log.Debug($"GPU Adapter: Unknown (Possible WARP without Luid)");
-
-                tempDevice.Dispose();
-                adapter.Dispose();
-
-                using (var mthread    = Device.QueryInterface<ID3D11Multithread>()) mthread.SetMultithreadProtected(true);
-                using (var dxgidevice = Device.QueryInterface<IDXGIDevice1>())      dxgidevice.MaximumFrameLatency = Config.Video.MaxFrameLatency;
 
                 // Input Layout
                 inputLayout = Device.CreateInputLayout(inputElements, ShaderCompiler.VSBlob);
@@ -235,31 +208,29 @@ public unsafe partial class Renderer
                     ByteWidth       = (uint)(sizeof(PSBufferType) + (16 - (sizeof(PSBufferType) % 16)))
                 });
                 context.PSSetConstantBuffer(0, psBuffer);
-                psBufferData.hdrmethod = HDRtoSDRMethod.None;
-                context.UpdateSubresource(psBufferData, psBuffer);
 
                 // subs
                 ShaderBGRA = ShaderCompiler.CompilePS(Device, "bgra", @"color = float4(Texture1.Sample(Sampler, input.Texture).rgba);", null);
 
-                // Blend State (currently used -mainly- for RGBA images and OverlayTexture)
+                // Blend State (currently used for OverlayTexture)
                 blendStateAlpha = Device.CreateBlendState(blendDesc);
 
                 // Rasterizer (Will change CullMode to None for H-V Flip)
                 rasterizerState = Device.CreateRasterizerState(new(CullMode.Back, FillMode.Solid));
                 context.RSSetState(rasterizerState);
 
-                InitializeVideoProcessor();
+                if (!gpuForceWarp)
+                    InitializeVideoProcessor();
 
                 if (CanInfo) Log.Info($"Initialized with Feature Level {(int)Device.FeatureLevel >> 12}.{((int)Device.FeatureLevel >> 8) & 0xf}");
 
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
-                if (string.IsNullOrWhiteSpace(Config.Video.GPUAdapter) || Config.Video.GPUAdapter.ToUpper() != "WARP")
+                if (!gpuForceWarp)
                 {
-                    try { if (Device != null) Log.Warn($"Device Remove Reason = {Device.DeviceRemovedReason.Description}"); } catch { } // For troubleshooting
-
-                    Log.Warn($"Initialization failed ({e.Message}). Failling back to WARP device.");
-                    Config.Video.GPUAdapter = "WARP";
+                    gpuForceWarp = true;
+                    Log.Error($"Initialization failed ({e.Message}). Failling back to WARP device.");
                     Flush();
                 }
                 else
@@ -272,41 +243,11 @@ public unsafe partial class Renderer
 
             if (swapChain)
             {
-                if (ControlHandle != IntPtr.Zero)
+                if (ControlHandle != 0)
                     InitializeSwapChain(ControlHandle);
                 else if (SwapChainWinUIClbk != null)
                     InitializeWinUISwapChain();
             }
-
-            InitializeChildSwapChain();
-        }
-    }
-    public void InitializeChildSwapChain(bool swapChain = true)
-    {
-        if (child == null )
-            return;
-
-        lock (lockDevice)
-        {
-            child.lockDevice    = lockDevice;
-            child.VideoDecoder  = VideoDecoder;
-            child.Device        = Device;
-            child.context       = context;
-            child.curRatio      = curRatio;
-            child.VideoRect     = VideoRect;
-            child.videoProcessor= videoProcessor;
-            child.InitializeVideoProcessor(); // to use the same VP we need to set it's config in each present (means we don't update VP config as is different)
-
-            if (swapChain)
-            {
-                if (child.ControlHandle != IntPtr.Zero)
-                    child.InitializeSwapChain(child.ControlHandle);
-                else if (child.SwapChainWinUIClbk != null)
-                    child.InitializeWinUISwapChain();
-            }
-
-            child.Disposed = false;
-            child.SetViewport();
         }
     }
 
@@ -317,15 +258,25 @@ public unsafe partial class Renderer
             if (Disposed)
                 return;
 
-            if (child != null)
-                DisposeChild();
-
             Disposed = true;
 
             if (CanDebug) Log.Debug("Disposing");
 
-            VideoDecoder.DisposeFrame(LastFrame);
-            RefreshLayout();
+            lock (lockRenderLoops)
+            {
+                VideoDecoder.DisposeFrame(LastFrame);
+                LastFrame = null;
+            }
+
+            DisposeSwapChain();
+
+            if (use2d)
+            {
+                Config.Video.OnD2DDisposing(this, context2d);
+                bitmap2d?.Dispose();
+                context2d?.Dispose();
+                device2d?.Dispose();
+            }
 
             DisposeVideoProcessor();
 
@@ -338,7 +289,6 @@ public unsafe partial class Renderer
             vertexBuffer?.Dispose();
             rasterizerState?.Dispose();
             blendStateAlpha?.Dispose();
-            DisposeSwapChain();
 
             overlayTexture?.Dispose();
             overlayTextureSrv?.Dispose();
@@ -371,6 +321,7 @@ public unsafe partial class Renderer
                 context.Flush();
                 context.Dispose();
                 Device.Dispose();
+                dxgiDevice.Dispose();
                 Device = null;
             }
 
@@ -378,29 +329,9 @@ public unsafe partial class Renderer
             ReportLiveObjects();
             #endif
 
-            curRatio = 1.0f;
+            DAR         = new(0, 1);
+            curRatio    = 1.0f;
             if (CanInfo) Log.Info("Disposed");
-        }
-    }
-    public void DisposeChild()
-    {
-        if (child == null)
-            return;
-
-        lock (lockDevice)
-        {
-            child.DisposeSwapChain();
-            child.DisposeVideoProcessor();
-            child.Disposed = true;
-
-            if (!isFlushing)
-            {
-                child.Device        = null;
-                child.context       = null;
-                child.VideoDecoder  = null;
-                child.LastFrame     = null;
-                child               = null;
-            }
         }
     }
 
@@ -412,25 +343,35 @@ public unsafe partial class Renderer
             var controlHandle = ControlHandle;
             var swapChainClbk = SwapChainWinUIClbk;
 
-            IntPtr controlHandleReplica = IntPtr.Zero;
-            Action<IDXGISwapChain2> swapChainClbkReplica = null;;
-            if (child != null)
-            {
-                controlHandleReplica = child.ControlHandle;
-                swapChainClbkReplica = child.SwapChainWinUIClbk;
-            }
-
             Dispose();
             ControlHandle = controlHandle;
             SwapChainWinUIClbk = swapChainClbk;
-            if (child != null)
-            {
-                child.ControlHandle = controlHandleReplica;
-                child.SwapChainWinUIClbk = swapChainClbkReplica;
-            }
+
             Initialize();
             isFlushing = false;
         }
+    }
+
+    void HandleDeviceLost()
+    {
+        Thread.Sleep(100);
+
+        var stream = VideoDecoder.VideoStream;
+        if (stream == null)
+        {
+            Flush();
+            return;
+        }
+
+        var running = VideoDecoder.IsRunning;
+
+        VideoDecoder.Dispose();
+        Flush();
+        VideoDecoder.Open(stream); // Should Re-ConfigPlanes()
+        VideoDecoder.keyPacketRequired = !VideoDecoder.isIntraOnly;
+        VideoDecoder.keyFrameRequired  = false;
+        if (running)
+            VideoDecoder.Start();
     }
 
     #if DEBUG
@@ -451,21 +392,34 @@ public unsafe partial class Renderer
     struct PSBufferType
     {
         public int coefsIndex;
-        public HDRtoSDRMethod hdrmethod;
 
-        public float brightness;
-        public float contrast;
+        // Filters
+        public float brightness;    // -0.5  to 0.5     (0.0 default)
+        public float contrast;      //  0.0  to 2.0     (1.0 default)
+        public float hue;           // -3.14 to 3.14    (0.0 default)
+        public float saturation;    //  0.0  to 2.0     (1.0 default)
 
-        public float g_luminance;
-        public float g_toneP1;
-        public float g_toneP2;
+        public float uvOffset;
+        public HDRtoSDRMethod tonemap;
+        public float hdrtone;
 
-        public float texWidth;
+        public PSBufferType()
+        {
+            brightness  = 0;
+            contrast    = 1;
+            hue         = 0;
+            saturation  = 1;
+            tonemap     = HDRtoSDRMethod.Hable;
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]
     struct VSBufferType
     {
-        public Matrix4x4 mat;
+        public Matrix4x4    mat;
+        public Vector4      cropRegion;
+
+        public VSBufferType()
+            => cropRegion = new(0, 0, 1, 1);
     }
 }

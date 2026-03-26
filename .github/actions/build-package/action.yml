@@ -4,28 +4,29 @@ inputs:
   archive-name:
     description: 'archive name including extension'
     required: true
+  yt-dlp-version:
+    description: 'yt-dlp version to download'
+    required: false
+    default: '2025.08.20'
 runs:
   using: "composite"
   steps:
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: 10.0.x
 
     - name: Restore dependencies
       shell: pwsh
-      run: dotnet restore
+      run: dotnet restore .\LLPlayer\LLPlayer.csproj /p:PublishReadyToRun=true
 
     - name: Build App
       shell: pwsh
       run: |
-        dotnet publish .\LLPlayer\LLPlayer.csproj `
-          --configuration Release `
-          --runtime win-x64 `
-          --self-contained false `
-          -p:PublishSingleFile=true `
-          -p:PublishReadyToRun=true `
-          --output ${{ runner.temp }}\publish
+        dotnet msbuild .\LLPlayer\LLPlayer.csproj `
+          /t:Publish `
+          /p:PublishProfile=FolderProfile `
+          /p:PublishDir=${{ runner.temp }}\publish
 
     - name: Clean build
       shell: pwsh
@@ -49,17 +50,18 @@ runs:
         # Copy FFmpeg
         Copy-Item .\FFmpeg -Destination $pub -Recurse
 
-    - name: Build Plugin (YoutubeDL)
+    - name: Restore dependencies for Plugins
       shell: pwsh
       run: |
-        dotnet publish .\Plugins\YoutubeDL\YoutubeDL.csproj `
-          --configuration Release `
-          --runtime win-x64 `
-          --framework net9.0-windows10.0.18362.0 `
-          --self-contained false `
-          -p:PublishSingleFile=false `
-          -p:PublishReadyToRun=true `
-          --output ${{ runner.temp }}\publish-YoutubeDL
+        dotnet restore .\Plugins\YoutubeDL\YoutubeDL.csproj /p:PublishReadyToRun=true
+
+    - name: Build Plugins
+      shell: pwsh
+      run: |
+        dotnet msbuild .\Plugins\YoutubeDL\YoutubeDL.csproj `
+          /t:Publish `
+          /p:PublishProfile=FolderProfile `
+          /p:PublishDir=${{ runner.temp }}\publish-YoutubeDL
 
     - name: Copy Plugin DLLs
       shell: pwsh
@@ -69,18 +71,19 @@ runs:
         New-Item -ItemType Directory -Path "$pub\Plugins\YoutubeDL"
         Copy-Item "$pubY\YoutubeDL.dll","$pubY\YoutubeDL.pdb" -Destination "$pub\Plugins\YoutubeDL"
 
-    - name: Get latest yt-dlp release
-      id: fetch-yt
-      uses: pozetroninc/github-action-get-latest-release@master
-      with:
-        repository: yt-dlp/yt-dlp
-        excludes: prerelease,draft
+    # - name: Get latest yt-dlp release
+    #   id: fetch-yt
+    #   uses: pozetroninc/github-action-get-latest-release@master
+    #   with:
+    #     repository: yt-dlp/yt-dlp
+    #     excludes: prerelease,draft
 
     - name: Download yt-dlp.exe
       shell: pwsh
       run: |
         $pub = "${{ runner.temp }}\publish"
-        $ver = "${{ steps.fetch-yt.outputs.release }}"
+        # $ver = "${{ steps.fetch-yt.outputs.release }}"
+        $ver = "${{ inputs.yt-dlp-version }}"
         $url = "https://github.com/yt-dlp/yt-dlp/releases/download/$ver/yt-dlp.exe"
         $outDir = "$pub\Plugins\YoutubeDL"
         New-Item -Path "$outDir\yt-dlp.exe_here" -ItemType File

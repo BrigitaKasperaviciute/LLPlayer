@@ -20,6 +20,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
     protected double speed = 1, oldSpeed = 1;
     protected virtual void OnSpeedChanged(double value) { }
 
+    internal bool               codecChanged;
     internal bool               filledFromCodec;
     protected AVFrame*          frame;
     protected AVCodecContext*   codecCtx;
@@ -60,6 +61,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
     protected string Open2(StreamBase stream, StreamBase prevStream, bool openStream = true)
     {
         string error = null;
+        AVCodec* codec;
 
         try
         {
@@ -75,10 +77,17 @@ public abstract unsafe class DecoderBase : RunThreadBase
 
                 if (stream is not DataStream) // if we don't open/use a data codec context why not just push the Data Frames directly from the Demuxer? no need to have DataDecoder*
                 {
-                    // avcodec_find_decoder will use libdav1d which does not support hardware decoding (software fallback with openStream = false from av1 to default:libdav1d) [#340]
-                    var codec = stream.CodecID == AVCodecID.Av1 && openStream && Config.Video.VideoAcceleration ? avcodec_find_decoder_by_name("av1") : avcodec_find_decoder(stream.CodecID);
+                    var codecStr = Config.Decoder.GetCodecPtr(stream.Type);
+                    if (string.IsNullOrEmpty(codecStr))
+                        // avcodec_find_decoder will use libdav1d which does not support hardware decoding (software fallback with openStream = false from av1 to default:libdav1d) [#340]
+                        codec = stream.CodecID == AVCodecID.Av1 && openStream && Config.Video.VideoAcceleration ? avcodec_find_decoder_by_name("av1") : avcodec_find_decoder(stream.CodecID);
+                    else
+                        codec = avcodec_find_decoder_by_name(codecStr);
+
                     if (codec == null)
-                        return error = $"[{Type} avcodec_find_decoder] No suitable codec found";
+                        return error = $"[{Type} avcodec_find_decoder] No suitable codec found ";
+
+                    if (CanDebug) Log.Debug($"[{Type}] Using {avcodec_get_name(codec->id)} codec");
 
                     codecCtx = avcodec_alloc_context3(codec); // Pass codec to use default settings
                     if (codecCtx == null)
@@ -95,7 +104,17 @@ public abstract unsafe class DecoderBase : RunThreadBase
                         codecCtx->flags |= CodecFlags.OutputCorrupt;
 
                     if (Config.Decoder.LowDelay)
-                        codecCtx->flags |= CodecFlags.LowDelay;
+                    {
+                        if (Config.Decoder.AllowDropFrames)
+                            codecCtx->flags |= CodecFlags.LowDelay;
+                        else
+                        {
+                            codecCtx->skip_frame = AVDiscard.None;
+                            codecCtx->flags2 |= CodecFlags2.Fast;
+                        }
+                    }
+                    else if (!Config.Decoder.AllowDropFrames)
+                        codecCtx->skip_frame = AVDiscard.None;
 
                     try { ret = Setup(codec); } catch(Exception e) { return error = $"[{Type} Setup] {e.Message}"; }
                     if (ret < 0)
@@ -104,7 +123,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                     var codecOpts = Config.Decoder.GetCodecOptPtr(stream.Type);
                     AVDictionary* avopt = null;
                     foreach(var optKV in codecOpts)
-                        av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
+                        _ = av_dict_set(&avopt, optKV.Key, optKV.Value, 0);
 
                     ret = avcodec_open2(codecCtx, null, avopt == null ? null : &avopt);
 
@@ -115,7 +134,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                             AVDictionaryEntry *t = null;
 
                             while ((t = av_dict_get(avopt, "", t, DictReadFlags.IgnoreSuffix)) != null)
-                                Log.Debug($"Ignoring codec option {Utils.BytePtrToStringUTF8(t->key)}");
+                                Log.Debug($"Ignoring codec option {BytePtrToStringUTF8(t->key)}");
                         }
 
                         av_dict_free(&avopt);
@@ -145,7 +164,7 @@ public abstract unsafe class DecoderBase : RunThreadBase
                         stream.Demuxer.EnableStream(stream);
 
                     Status = Status.Stopped;
-                    CodecChanged?.Invoke(this);
+                    //CodecChanged?.Invoke(this); // We call this when we successfully decode one frame
                 }
 
                 return null;

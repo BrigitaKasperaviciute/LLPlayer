@@ -1,8 +1,6 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
+﻿using System.Linq;
 using FlyleafLib.MediaFramework.MediaStream;
+using FlyleafLib.MediaFramework.MediaPlaylist;
 using Lingua;
 
 namespace FlyleafLib.Plugins;
@@ -20,7 +18,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
         return detector;
     }, true);
 
-    private static readonly HashSet<string> ExtSet = new(Utils.ExtensionsSubtitles, StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> ExtSet = new(ExtensionsSubtitles, StringComparer.OrdinalIgnoreCase);
 
     public OpenSubtitlesResults Open(string url)
     {
@@ -243,7 +241,7 @@ public class OpenSubtitles : PluginBase, IOpenSubtitles, ISearchLocalSubtitles
         {
             FileInfo fi = new(path);
 
-            return Utils.ExtensionsSubtitlesBitmap.Contains(fi.Extension.TrimStart('.').ToLower());
+            return ExtensionsSubtitlesBitmap.Contains(fi.Extension.TrimStart('.').ToLower());
         }
         catch
         {

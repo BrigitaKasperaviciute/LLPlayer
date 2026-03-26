@@ -54,7 +54,7 @@ public class MainWindowVM : Bindable
         new Uri("pack://application:,,,/Resources/Images/pause.png"));
     #endregion
 
-    public DelegateCommand? CmdOnLoaded => field ??= new(() =>
+    public DelegateCommand CmdOnLoaded => field ??= new(() =>
     {
         // error handling
         FL.Player.KnownErrorOccurred += (sender, args) =>
@@ -141,6 +141,9 @@ public class MainWindowVM : Bindable
         {
             if (!args.Success || args.IsSubtitles)
             {
+                if (!args.IsSubtitles)
+                    FL.Player.renderer?.ClearScreen(true);
+
                 return;
             }
 
@@ -158,9 +161,18 @@ public class MainWindowVM : Bindable
         {
             FL.Player.OpenAsync(App.CmdUrl);
         }
+
+        if (Engine.Config.FFmpegLoadProfile == Flyleaf.FFmpeg.LoadProfile.All)
+        {
+            Task.Run(() =>
+            {
+                Engine.Video.RefreshCapDevices();
+                Engine.Audio.RefreshCapDevices();
+            });
+        }
     });
 
-    public DelegateCommand? CmdOnClosing => field ??= new(() =>
+    public DelegateCommand CmdOnClosing => field ??= new(() =>
     {
         FL.Player.Dispose();
     });

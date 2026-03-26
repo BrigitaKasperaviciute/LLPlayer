@@ -11,7 +11,7 @@ public class SettingsDialogVM : Bindable, IDialogAware
         FL = fl;
     }
 
-    public DelegateCommand<string>? CmdCloseDialog => field ??= new((parameter) =>
+    public DelegateCommand<string> CmdCloseDialog => field ??= new((parameter) =>
     {
         ButtonResult result = ButtonResult.None;
 

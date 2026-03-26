@@ -28,7 +28,7 @@ public class SettingsAudioVM : Bindable
         FL = fl;
     }
 
-    public DelegateCommand? CmdConfigureLanguage => field ??= new(() =>
+    public DelegateCommand CmdConfigureLanguage => field ??= new(() =>
     {
         DialogParameters p = new()
         {

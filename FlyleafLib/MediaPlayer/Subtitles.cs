@@ -1,5 +1,4 @@
-﻿using System.Collections.ObjectModel;
-using FlyleafLib.MediaFramework.MediaContext;
+﻿using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaStream;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -471,6 +470,9 @@ public class Subtitle : NotifyPropertyChanged
     public bool EnabledASR { get => _enabledASR; private set => Set(ref field, value); }
     private bool _enabledASR;
 
+    public int StreamIndex { get => _streamIndex; private set => Set(ref field, value); }
+    private int _streamIndex = -1;
+
     /// <summary>
     /// Whether the input has subtitles and it is configured
     /// </summary>
@@ -492,15 +494,17 @@ public class Subtitle : NotifyPropertyChanged
     {
         UI(() =>
         {
-            IsOpened = IsOpened;
-            Codec = Codec;
-            IsBitmap = IsBitmap;
-            EnabledASR = EnabledASR;
+            StreamIndex = _streamIndex;
+            IsOpened = _isOpened;
+            Codec = _codec;
+            IsBitmap = _isBitmap;
+            EnabledASR = _enabledASR;
         });
     }
 
     internal void Reset()
     {
+        _streamIndex = -1;
         _codec = null;
         _isOpened = false;
         _isBitmap = false;
@@ -532,6 +536,7 @@ public class Subtitle : NotifyPropertyChanged
             return;
         }
 
+        _streamIndex = subStream.StreamIndex;
         _codec = subStream.Codec;
         _isOpened = !Decoder.SubtitlesDecoders[_subIndex].Disposed;
         _isBitmap = subStream is { IsBitmap: true };

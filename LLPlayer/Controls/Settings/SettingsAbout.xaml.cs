@@ -110,7 +110,6 @@ public class SettingsAboutVM : Bindable
     }
     public ObservableCollection<LibraryInfo> Libraries { get; }
 
-    [field: AllowNull, MaybeNull]
     public DelegateCommand CmdCopyVersion => field ??= new(() =>
     {
         Clipboard.SetText($"""

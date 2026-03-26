@@ -45,7 +45,7 @@
                     Ticks="{Binding FL.Player.Chapters, Converter={StaticResource ChaptersToTicksConv}}"
                     IsSelectionRangeEnabled="True" SelectionStart="{Binding RelativeSource={RelativeSource Self}, Path=Value, Mode=OneWay}" Style="{DynamicResource FlyleafSlider}" Focusable="False" Margin="10,0,10,0" VerticalAlignment="Center" Value="{Binding FL.Player.CurTime, Mode=TwoWay, Converter={StaticResource TicksToSecondsConv}}" Maximum="{Binding FL.Player.Duration, Converter={StaticResource TicksToSecondsConv}}">
                     <b:Interaction.Behaviors>
-                        <local:SliderToolTipBehavior Chapters="{Binding FL.Player.VideoDemuxer.Chapters}" />
+                        <local:SliderToolTipBehavior Chapters="{Binding FL.Player.Chapters}" />
                     </b:Interaction.Behaviors>
                     <Slider.SelectionEnd>
                         <MultiBinding Converter="{StaticResource SumConv}">

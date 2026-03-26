@@ -26,6 +26,21 @@
         <controls:SubtitlesControl />
 
         <Grid Margin="6 4 6 4">
+            <!-- Debug Info -->
+            <!-- TODO: L: make it dedicated window -->
+            <flyleaf:PlayerDebug x:Name="playerDebug" DataContext="{Binding FL}" VerticalAlignment="Center" HorizontalAlignment="Center" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource MaterialDesign.Brush.Primary.Light}" ValueColor="{DynamicResource MaterialDesign.Brush.Secondary.Light}" Visibility="{Binding Config.ShowDebug, Converter={StaticResource BooleanToVisibilityConv}, FallbackValue=Collapsed, TargetNullValue=Collapsed}">
+                <flyleaf:PlayerDebug.Style>
+                    <Style TargetType="flyleaf:PlayerDebug">
+                        <Setter Property="Player" Value="{x:Null}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Visibility, ElementName=playerDebug}" Value="Visible">
+                                <Setter Property="Player" Value="{Binding Player}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </flyleaf:PlayerDebug.Style>
+            </flyleaf:PlayerDebug>
+
             <!-- timestamp display in upper left corner -->
             <TextBlock VerticalAlignment="Top" HorizontalAlignment="Left" Padding="4" Margin="10 5 0 0" d:Text="00:00:00.000 / 01:42:23.913" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource MaterialDesignBody}">
                 <TextBlock.Background>
@@ -81,10 +96,6 @@
                     </Style>
                 </TextBlock.Style>
             </TextBlock>
-
-            <!-- Debug Info -->
-            <!-- TODO: L: make it dedicated window -->
-            <flyleaf:PlayerDebug DataContext="{Binding FL}" VerticalAlignment="Center" HorizontalAlignment="Center" Player="{Binding Player}" BoxColor="#AA000000" HeaderColor="White" InfoColor="{DynamicResource MaterialDesign.Brush.Primary.Light}" ValueColor="{DynamicResource MaterialDesign.Brush.Secondary.Light}" Visibility="{Binding Config.ShowDebug, Converter={StaticResource BooleanToVisibilityConv}, FallbackValue=Collapsed, TargetNullValue=Collapsed}" />
 
             <!--Loading Spinner-->
             <ProgressBar

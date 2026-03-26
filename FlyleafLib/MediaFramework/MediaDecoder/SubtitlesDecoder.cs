@@ -1,11 +1,9 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Threading;
+﻿using System.Diagnostics;
+
 using FlyleafLib.MediaFramework.MediaDemuxer;
 using FlyleafLib.MediaFramework.MediaStream;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaFramework.MediaDecoder;
 
@@ -14,7 +12,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
     public SubtitlesStream  SubtitlesStream     => (SubtitlesStream) Stream;
 
     public ConcurrentQueue<SubtitlesFrame>
-                            Frames              { get; protected set; } = new ConcurrentQueue<SubtitlesFrame>();
+                            Frames              { get; protected set; } = [];
 
     public PacketQueue      SubtitlesPackets;
 
@@ -172,9 +170,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 if (!filledFromCodec) // TODO: CodecChanged? And when findstreaminfo is disabled as it is an external demuxer will not know the main demuxer's start time
                 {
                     filledFromCodec = true;
-                    avcodec_parameters_from_context(Stream.AVStream->codecpar, codecCtx);
-                    SubtitlesStream.Refresh();
-
+                    SubtitlesStream.Refresh(this);
                     CodecChanged?.Invoke(this);
                 }
 
@@ -199,7 +195,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
 
                 if (subFrame.sub.rects[0]->type == AVSubtitleType.Ass)
                 {
-                    subFrame.text = Utils.BytePtrToStringUTF8(subFrame.sub.rects[0]->ass).Trim();
+                    subFrame.text = BytePtrToStringUTF8(subFrame.sub.rects[0]->ass).Trim();
                     Config.Subtitles.Parser(subFrame);
 
                     fixed(AVSubtitle* subPtr = &subFrame.sub)
@@ -210,7 +206,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                 }
                 else if (subFrame.sub.rects[0]->type == AVSubtitleType.Text)
                 {
-                    subFrame.text = Utils.BytePtrToStringUTF8(subFrame.sub.rects[0]->text).Trim();
+                    subFrame.text = BytePtrToStringUTF8(subFrame.sub.rects[0]->text).Trim();
 
                     fixed(AVSubtitle* subPtr = &subFrame.sub)
                         avsubtitle_free(subPtr);
@@ -234,7 +230,7 @@ public unsafe class SubtitlesDecoder : DecoderBase
                     };
                 }
 
-                if (CanTrace) Log.Trace($"Processes {Utils.TicksToTime(subFrame.timestamp)}");
+                if (CanTrace) Log.Trace($"Processes {TicksToTime(subFrame.timestamp)}");
 
                 Frames.Enqueue(subFrame);
             }

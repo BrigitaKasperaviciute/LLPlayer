@@ -1,5 +1,4 @@
-﻿using System.Threading.Tasks;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 
 using FlyleafLib.Controls.WPF;
 using FlyleafLib.MediaFramework.MediaPlaylist;
@@ -198,7 +197,12 @@ public class Commands
         => player.Rotation = uint.Parse(obj.ToString());
 
     private void ResetFilterAction(object filter)
-        => player.Config.Video.Filters[(VideoFilters)filter].Value = player.Config.Video.Filters[(VideoFilters)filter].DefaultValue;
+    {
+        if (player.renderer.VideoProcessor == VideoProcessors.Flyleaf && player.Config.Video.Filters.TryGetValue((VideoFilters)filter, out var flFilter))
+            flFilter.Value = flFilter.Default;
+        else if (player.renderer.VideoProcessor == VideoProcessors.D3D11 && player.Config.Video.D3Filters.TryGetValue((VideoFilters)filter, out var d3Filter))
+            d3Filter.Value = d3Filter.Default;
+    }
 
     public void SpeedSetAction(object speed)
     {
@@ -352,8 +356,8 @@ public class Commands
             player.OpenAsync((PlaylistItem)input);
         else if (input is ExternalStream)
             player.OpenAsync((ExternalStream)input);
-        else if (input is System.IO.Stream)
-            player.OpenAsync((System.IO.Stream)input);
+        else if (input is Stream)
+            player.OpenAsync((Stream)input);
         else
             player.OpenAsync(input.ToString());
     }

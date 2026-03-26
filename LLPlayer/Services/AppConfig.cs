@@ -302,7 +302,7 @@ public class AppConfigSubs : Bindable
         OnPropertyChanged(nameof(SubsFontWeight2Fix));
         OnPropertyChanged(nameof(SubsFontStyle2Fix));
 
-        CmdResetSubsFont2!.RaiseCanExecuteChanged();
+        CmdResetSubsFont2.RaiseCanExecuteChanged();
     }
 
     // Primary Subtitle Size
@@ -319,7 +319,7 @@ public class AppConfigSubs : Bindable
             if (Set(ref field, Math.Round(value)))
             {
                 OnPropertyChanged(nameof(SubsFontSizeFix));
-                CmdResetSubsFontSize2!.RaiseCanExecuteChanged();
+                CmdResetSubsFontSize2.RaiseCanExecuteChanged();
             }
         }
     } = 44;
@@ -341,7 +341,7 @@ public class AppConfigSubs : Bindable
             if (Set(ref field, Math.Round(value)))
             {
                 OnPropertyChanged(nameof(SubsFontSize2Fix));
-                CmdResetSubsFontSize2!.RaiseCanExecuteChanged();
+                CmdResetSubsFontSize2.RaiseCanExecuteChanged();
             }
         }
     } = 44;
@@ -374,7 +374,7 @@ public class AppConfigSubs : Bindable
             if (Set(ref field, value))
             {
                 OnPropertyChanged(nameof(SubsFontColor2Fix));
-                CmdResetSubsFontColor2!.RaiseCanExecuteChanged();
+                CmdResetSubsFontColor2.RaiseCanExecuteChanged();
             }
         }
     } = Colors.White;
@@ -405,7 +405,7 @@ public class AppConfigSubs : Bindable
             if (Set(ref field, value))
             {
                 OnPropertyChanged(nameof(SubsFontColor2Fix));
-                CmdResetSubsFontColor2!.RaiseCanExecuteChanged();
+                CmdResetSubsFontColor2.RaiseCanExecuteChanged();
             }
         }
     } = Color.FromRgb(231, 231, 231); // #E7E7E7
@@ -440,7 +440,7 @@ public class AppConfigSubs : Bindable
             {
                 OnPropertyChanged(nameof(SubsBackgroundBrush));
                 OnPropertyChanged(nameof(SubsBackgroundBrush2));
-                CmdResetSubsBackgroundOpacity2!.RaiseCanExecuteChanged();
+                CmdResetSubsBackgroundOpacity2.RaiseCanExecuteChanged();
             }
         }
     } = 0; // default no background
@@ -470,7 +470,7 @@ public class AppConfigSubs : Bindable
             if (Set(ref field, Math.Round(value, 2)))
             {
                 OnPropertyChanged(nameof(SubsBackgroundBrush2));
-                CmdResetSubsBackgroundOpacity2!.RaiseCanExecuteChanged();
+                CmdResetSubsBackgroundOpacity2.RaiseCanExecuteChanged();
             }
         }
     } = 0;
@@ -486,13 +486,13 @@ public class AppConfigSubs : Bindable
     }
 
     [JsonIgnore]
-    public DelegateCommand? CmdResetSubsFontSize2 => field ??= new(() =>
+    public DelegateCommand CmdResetSubsFontSize2 => field ??= new(() =>
     {
         SubsFontSize2 = SubsFontSize;
     }, () => SubsFontSize2 != SubsFontSize);
 
     [JsonIgnore]
-    public DelegateCommand? CmdResetSubsFont2 => field ??= new(() =>
+    public DelegateCommand CmdResetSubsFont2 => field ??= new(() =>
     {
         SubsFontFamily2 = SubsFontFamily;
         SubsFontStretch2 = SubsFontStretch;
@@ -508,13 +508,13 @@ public class AppConfigSubs : Bindable
     );
 
     [JsonIgnore]
-    public DelegateCommand? CmdResetSubsFontColor2 => field ??= new(() =>
+    public DelegateCommand CmdResetSubsFontColor2 => field ??= new(() =>
     {
         SubsFontColor2 = SubsFontColor;
     }, () => SubsFontColor2 != SubsFontColor);
 
     [JsonIgnore]
-    public DelegateCommand? CmdResetSubsBackgroundOpacity2 => field ??= new(() =>
+    public DelegateCommand CmdResetSubsBackgroundOpacity2 => field ??= new(() =>
     {
         SubsBackgroundOpacity2 = SubsBackgroundOpacity;
     }, () => SubsBackgroundOpacity2 != SubsBackgroundOpacity);

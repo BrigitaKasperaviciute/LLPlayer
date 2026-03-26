@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using System.Windows.Input;
-using static FlyleafLib.Logger;
 
 namespace FlyleafLib.MediaPlayer;
 
@@ -477,6 +474,12 @@ public class KeysConfig
             case KeyBindingAction.SeekForward4:
                 return player.SeekForward4;
 
+            case KeyBindingAction.SeekToStart:
+                return player.SeekToStart;
+
+            case KeyBindingAction.SeekToEnd:
+                return player.SeekToEnd;
+
             case KeyBindingAction.SubsCurSeek:
                 return player.Subtitles.CurSeek;
             case KeyBindingAction.SubsPrevSeek:
@@ -569,6 +572,8 @@ public class KeysConfig
         { KeyBindingAction.Stop },
         { KeyBindingAction.Flush },
         { KeyBindingAction.ToggleSeekAccurate },
+        { KeyBindingAction.SeekToStart },
+        { KeyBindingAction.SeekToEnd },
         { KeyBindingAction.SpeedAdd },
         { KeyBindingAction.SpeedAdd2 },
         { KeyBindingAction.SpeedRemove },
@@ -615,6 +620,7 @@ public class KeyBinding
     public Action ActionInternal { get; internal set; }
 }
 
+// NOTE: To be able to support compatibility with previous config versions add new to end?
 public enum KeyBindingAction
 {
     [Description(nameof(Custom))]
@@ -731,6 +737,10 @@ public enum KeyBindingAction
     SeekForward4,
     [Description("Seek backwards (4)")]
     SeekBackward4,
+    [Description("Seek to start position")]
+    SeekToStart,
+    [Description("Seek to end position")]
+    SeekToEnd,
 
     [Description("Seek to the previous subtitle")]
     SubsPrevSeek,
